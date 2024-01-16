@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "realworld-aiohttp"
+version = "0.1.0"
+description = """\
+    Python / AIOHTTP codebase containing real world examples (CRUD, auth, advanced patterns, etc)\
+    that adheres to the RealWorld spec and API.\
+"""
+authors = ["Stanislav Kiriukhin <st.krizh@gmail.com>"]
+readme = "README.md"
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+SQLAlchemy = "^2.0.25"
+aiohttp = "^3.9.1"
+aiohttp-apispec = "^2.2.3"
+alembic = "^1.13.1"
+asyncpg = "^0.29.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.8.0"
+pytest = "^7.4.4"
+pytest-asyncio = "^0.23.3"
+ruff = "^0.1.13"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
