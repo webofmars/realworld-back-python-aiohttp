@@ -1,14 +1,24 @@
-check:
+prerequisites-check:
 	@which docker
 	@docker compose version
 
 .env:
 	@cp .env.default .env
 
-db-up: check
+check:
+	@mypy
+	@ruff format --check
+	@ruff check
+
+format:
+	@ruff format
+
+fix:
+	@ruff format
+	@ruff check --fix
+
+db-up: prerequisites-check
 	@docker compose up -d postgres
 
-db-down: check
+db-down: prerequisites-check
 	@docker compose down
-
-.PHONY: check db-up db-down

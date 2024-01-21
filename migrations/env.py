@@ -1,7 +1,10 @@
 import os
+import typing as t
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.operations import MigrationScript
+from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import URL, create_engine
 
@@ -15,15 +18,28 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-def process_revision_directives(context, revision, directives):
+def get_env(name: str, default: str | None = None) -> str:
+    env = os.getenv(name, default)
+    if env is None:
+        raise ValueError(f"env variable ({name}) must be set")
+    return env
+
+
+def process_revision_directives(
+    context: MigrationContext,
+    revision: str | t.Iterable[str | None] | t.Iterable[str],
+    directives: list[MigrationScript],
+) -> None:
+    if context.config is None:
+        raise ValueError("migration environment config must be defined")
     migration_script = directives[0]
     head_revision = ScriptDirectory.from_config(context.config).get_current_head()
     if head_revision is None:
         new_rev_id = 1
     else:
-        last_rev_id = int(head_revision.lstrip('0'))
+        last_rev_id = int(head_revision.lstrip("0"))
         new_rev_id = last_rev_id + 1
-    migration_script.rev_id = "{0:04}".format(new_rev_id)
+    migration_script.rev_id = f"{new_rev_id:04}"
 
 
 def run_migrations_online() -> None:
@@ -36,11 +52,11 @@ def run_migrations_online() -> None:
     connectable = create_engine(
         url=URL.create(
             drivername="postgresql+psycopg2",
-            username=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
-            database=os.getenv("POSTGRES_DB"),
-            host=os.getenv("POSTGRES_HOST"),
-            port=int(os.getenv("POSTGRES_PORT")),
+            username=get_env("POSTGRES_USER"),
+            password=get_env("POSTGRES_PASSWORD"),
+            database=get_env("POSTGRES_DB"),
+            host=get_env("POSTGRES_HOST"),
+            port=int(get_env("POSTGRES_PORT")),
         )
     )
     with connectable.connect() as connection:

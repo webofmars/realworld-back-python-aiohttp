@@ -15,6 +15,7 @@ aiohttp = "^3.9.1"
 asyncpg = "^0.29.0"
 dependency-injector = "^4.41.0"
 sqlalchemy = "^2.0.25"
+yarl = "^1.9.4"
 
 
 [tool.poetry.group.migrations.dependencies]
@@ -27,6 +28,29 @@ mypy = "^1.8.0"
 pytest = "^7.4.4"
 pytest-asyncio = "^0.23.3"
 ruff = "^0.1.13"
+
+
+[tool.mypy]
+python_version = "3.11"
+files = ["conduit/", "migrations/", "tests/"]
+strict = true
+warn_unreachable = true
+show_error_context = true
+pretty = true
+
+
+[tool.ruff]
+include = ["conduit/**/*.py", "migrations/**/*.py", "tests/**/*.py"]
+line-length = 120
+
+
+[tool.ruff.lint]
+select = ["B", "D", "E", "F", "I", "N", "UP", "W"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D203", "D213"]
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 
 [build-system]
