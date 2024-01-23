@@ -3,7 +3,9 @@ __all__ = [
     "AuthTokenGenerator",
     "CreateUserInput",
     "PasswordHasher",
+    "UpdateUserInput",
     "User",
+    "UserId",
     "UserRepository",
     "Username",
 ]
@@ -15,7 +17,7 @@ from enum import Enum
 
 from yarl import URL
 
-from conduit.core.entities.common import Email, PasswordHash, RawPassword, Username
+from conduit.core.entities.common import Email, NotSet, PasswordHash, RawPassword, Username
 
 AuthToken = t.NewType("AuthToken", str)
 UserId = t.NewType("UserId", int)
@@ -38,6 +40,15 @@ class CreateUserInput:
     password: PasswordHash
 
 
+@dataclass(frozen=True)
+class UpdateUserInput:
+    username: Username | NotSet = NotSet.NOT_SET
+    email: Email | NotSet = NotSet.NOT_SET
+    password: PasswordHash | NotSet = NotSet.NOT_SET
+    bio: str | NotSet = NotSet.NOT_SET
+    image: URL | None | NotSet = NotSet.NOT_SET
+
+
 class UserRepository(t.Protocol):
     @abc.abstractmethod
     async def create(self, input: CreateUserInput) -> User:
@@ -47,6 +58,14 @@ class UserRepository(t.Protocol):
     async def get_by_email(self, email: Email) -> User | None:
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def get_by_id(self, id: UserId) -> User | None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def update(self, id: UserId, input: UpdateUserInput) -> User | None:
+        raise NotImplementedError()
+
 
 class AuthTokenGenerator(t.Protocol):
     @abc.abstractmethod
@@ -54,19 +73,23 @@ class AuthTokenGenerator(t.Protocol):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def get_user_info(self, token: AuthToken) -> User | None:
+    async def get_user_id(self, token: AuthToken) -> UserId | None:
         raise NotImplementedError()
 
 
 class PasswordHasher(t.Protocol):
-    class Verification(Enum):
+    class VerificationResult(Enum):
         SUCCESS = 1
         FAIL = 2
+
+        @property
+        def is_success(self) -> bool:
+            return self is PasswordHasher.VerificationResult.SUCCESS
 
     @abc.abstractmethod
     async def hash_password(self, password: RawPassword) -> PasswordHash:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def verify(self, password: RawPassword, hash: PasswordHash) -> Verification:
+    async def verify(self, password: RawPassword, hash: PasswordHash) -> VerificationResult:
         raise NotImplementedError()

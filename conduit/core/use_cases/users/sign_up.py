@@ -45,8 +45,8 @@ class SingUpUseCase(UseCase[SignUpInput, SignUpResult]):
         """Sign up a new user.
 
         Raises:
-            UsernameAlreadyExistsError: If `input.user.username` is already taken.
-            EmailAlreadyExistsError: If `input.user.email` is already taken.
+            UsernameAlreadyExistsError: If `input.username` is already taken.
+            EmailAlreadyExistsError: If `input.email` is already taken.
         """
         password_hash = await self._password_hasher.hash_password(input.raw_password)
         user = await self._user_repository.create(

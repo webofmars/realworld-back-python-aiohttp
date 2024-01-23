@@ -6,10 +6,10 @@ import abc
 import typing as t
 
 T = t.TypeVar("T", contravariant=True)
-S = t.TypeVar("S", covariant=True)
+R = t.TypeVar("R", covariant=True)
 
 
-class UseCase(t.Protocol[T, S]):
+class UseCase(t.Protocol[T, R]):
     @abc.abstractmethod
-    async def execute(self, input: T, /) -> S:
+    async def execute(self, input: T, /) -> R:
         raise NotImplementedError()
