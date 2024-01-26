@@ -3,12 +3,20 @@ __all__ = [
     "SignInResult",
     "SignInUseCase",
 ]
+
 import logging
 from dataclasses import dataclass
 
-from conduit.core.entities.common import Email, RawPassword
 from conduit.core.entities.errors import InvalidCredentialsError
-from conduit.core.entities.user import AuthToken, AuthTokenGenerator, PasswordHasher, User, UserRepository
+from conduit.core.entities.user import (
+    AuthToken,
+    AuthTokenGenerator,
+    Email,
+    PasswordHasher,
+    RawPassword,
+    User,
+    UserRepository,
+)
 from conduit.core.use_cases import UseCase
 
 LOG = logging.getLogger(__name__)

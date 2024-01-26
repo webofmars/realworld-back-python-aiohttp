@@ -3,23 +3,34 @@ __all__ = [
     "UpdateCurrentUserResult",
     "UpdateCurrentUserUseCase",
 ]
+
 import logging
 from dataclasses import dataclass, replace
 
 from yarl import URL
 
-from conduit.core.entities.common import Email, NotSet, PasswordHash, RawPassword, Username
+from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import UserDoesNotExistError, UserIsNotAuthenticatedError
-from conduit.core.entities.user import AuthToken, PasswordHasher, UpdateUserInput, User, UserId, UserRepository
+from conduit.core.entities.user import (
+    AuthToken,
+    Email,
+    PasswordHash,
+    PasswordHasher,
+    RawPassword,
+    UpdateUserInput,
+    User,
+    UserId,
+    Username,
+    UserRepository,
+)
 from conduit.core.use_cases import UseCase
+from conduit.core.use_cases.auth import WithAuthenticationInput
 
 LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class UpdateCurrentUserInput:
-    token: AuthToken
-    user_id: UserId | None
+class UpdateCurrentUserInput(WithAuthenticationInput):
     username: Username | NotSet = NotSet.NOT_SET
     email: Email | NotSet = NotSet.NOT_SET
     password: RawPassword | NotSet = NotSet.NOT_SET
@@ -46,15 +57,6 @@ class UpdateCurrentUserResult:
 
 
 class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUserResult]):
-    """Update current user.
-
-    Raises:
-        UserIsNotAuthenticatedError: If user is not authenticated.
-        UserDoesNotExistError: If user does not exist.
-        UsernameAlreadyExistsError: If `input.username` is already taken.
-        EmailAlreadyExistsError: If `input.email` is already taken.
-    """
-
     def __init__(
         self,
         user_repository: UserRepository,
@@ -64,6 +66,14 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
         self._password_hasher = password_hasher
 
     async def execute(self, input: UpdateCurrentUserInput, /) -> UpdateCurrentUserResult:
+        """Update current user.
+
+        Raises:
+            UserIsNotAuthenticatedError: If user is not authenticated.
+            UserDoesNotExistError: If user does not exist.
+            UsernameAlreadyExistsError: If `input.username` is already taken.
+            EmailAlreadyExistsError: If `input.email` is already taken.
+        """
         if input.user_id is None:
             LOG.info("user is not authenticated")
             raise UserIsNotAuthenticatedError()

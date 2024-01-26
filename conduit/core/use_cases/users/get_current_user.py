@@ -3,21 +3,20 @@ __all__ = [
     "GetCurrentUserResult",
     "GetCurrentUserUseCase",
 ]
+
 import logging
 from dataclasses import dataclass, replace
 
 from conduit.core.entities.errors import UserDoesNotExistError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User, UserId, UserRepository
 from conduit.core.use_cases import UseCase
+from conduit.core.use_cases.auth import WithAuthenticationInput
 
 LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GetCurrentUserInput:
-    token: AuthToken
-    user_id: UserId | None
-
+class GetCurrentUserInput(WithAuthenticationInput):
     def with_user_id(self, id: UserId) -> "GetCurrentUserInput":
         return replace(self, user_id=id)
 
@@ -29,20 +28,16 @@ class GetCurrentUserResult:
 
 
 class GetCurrentUserUseCase(UseCase[GetCurrentUserInput, GetCurrentUserResult]):
-    """Get current user.
-
-    Raises:
-        UserIsNotAuthenticatedError: If user is not authenticated.
-        UserDoesNotExistError: If user does not exist.
-    """
-
-    def __init__(
-        self,
-        user_repository: UserRepository,
-    ) -> None:
+    def __init__(self, user_repository: UserRepository) -> None:
         self._user_repository = user_repository
 
     async def execute(self, input: GetCurrentUserInput, /) -> GetCurrentUserResult:
+        """Get current user.
+
+        Raises:
+            UserIsNotAuthenticatedError: If user is not authenticated.
+            UserDoesNotExistError: If user does not exist.
+        """
         if input.user_id is None:
             LOG.info("user is not authenticated")
             raise UserIsNotAuthenticatedError()

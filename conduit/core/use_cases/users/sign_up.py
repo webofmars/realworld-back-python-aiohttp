@@ -3,15 +3,18 @@ __all__ = [
     "SignUpResult",
     "SingUpUseCase",
 ]
+
 from dataclasses import dataclass
 
-from conduit.core.entities.common import Email, RawPassword, Username
 from conduit.core.entities.user import (
     AuthToken,
     AuthTokenGenerator,
     CreateUserInput,
+    Email,
     PasswordHasher,
+    RawPassword,
     User,
+    Username,
     UserRepository,
 )
 from conduit.core.use_cases import UseCase

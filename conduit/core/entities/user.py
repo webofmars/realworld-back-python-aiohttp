@@ -2,7 +2,10 @@ __all__ = [
     "AuthToken",
     "AuthTokenGenerator",
     "CreateUserInput",
+    "Email",
+    "PasswordHash",
     "PasswordHasher",
+    "RawPassword",
     "UpdateUserInput",
     "User",
     "UserId",
@@ -17,10 +20,14 @@ from enum import Enum
 
 from yarl import URL
 
-from conduit.core.entities.common import Email, NotSet, PasswordHash, RawPassword, Username
+from conduit.core.entities.common import NotSet
 
 AuthToken = t.NewType("AuthToken", str)
+Email = t.NewType("Email", str)
+PasswordHash = t.NewType("PasswordHash", str)
+RawPassword = t.NewType("RawPassword", str)
 UserId = t.NewType("UserId", int)
+Username = t.NewType("Username", str)
 
 
 @dataclass(frozen=True)
