@@ -49,6 +49,10 @@ select = ["B", "D", "E", "F", "I", "N", "UP", "W"]
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D203", "D213"]
 
 
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

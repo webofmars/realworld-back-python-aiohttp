@@ -13,8 +13,7 @@ check:
 format:
 	@ruff format
 
-fix:
-	@ruff format
+fix: format
 	@ruff check --fix
 
 db-up: prerequisites-check

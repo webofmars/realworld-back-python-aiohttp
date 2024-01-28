@@ -22,7 +22,7 @@ class Profile:
 
 class ProfileRepository(t.Protocol):
     @abc.abstractmethod
-    async def get(self, username: Username, is_following_by: UserId | None = None) -> t.Optional[Profile]:
+    async def get(self, username: Username, is_following_by: UserId | None = None) -> Profile | None:
         raise NotImplementedError()
 
     @abc.abstractmethod

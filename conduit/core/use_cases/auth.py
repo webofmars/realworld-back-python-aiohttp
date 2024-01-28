@@ -8,6 +8,7 @@ import logging
 import typing as t
 from dataclasses import dataclass
 
+from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, AuthTokenGenerator, UserId
 from conduit.core.use_cases import UseCase
 
@@ -31,6 +32,11 @@ class Input(t.Protocol):
 class WithAuthenticationInput:
     token: AuthToken
     user_id: UserId | None
+
+    def ensure_authenticated(self) -> UserId:
+        if self.user_id is None:
+            raise UserIsNotAuthenticatedError()
+        return self.user_id
 
 
 @dataclass(frozen=True)

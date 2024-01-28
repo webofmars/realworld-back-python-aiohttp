@@ -8,7 +8,6 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.profile import Profile, ProfileRepository
 from conduit.core.entities.user import UserId, Username
 from conduit.core.use_cases import UseCase
@@ -40,8 +39,7 @@ class UnfollowUseCase(UseCase[UnfollowInput, UnfollowResult]):
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
-        if input.user_id is None:
-            LOG.info("user is not authenticated")
-            raise UserIsNotAuthenticatedError()
-        profile = await self._profile_repository.unfollow(input.username, following_by=input.user_id)
+        user_id = input.ensure_authenticated()
+        profile = await self._profile_repository.unfollow(input.username, following_by=user_id)
+        LOG.info("profile is unfollowed", extra={"input": input, "profile": profile})
         return UnfollowResult(profile)

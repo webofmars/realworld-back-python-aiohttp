@@ -10,7 +10,6 @@ from dataclasses import dataclass, replace
 from yarl import URL
 
 from conduit.core.entities.common import NotSet
-from conduit.core.entities.errors import UserDoesNotExistError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import (
     AuthToken,
     Email,
@@ -52,7 +51,7 @@ class UpdateCurrentUserInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class UpdateCurrentUserResult:
-    user: User
+    user: User | None
     token: AuthToken
 
 
@@ -74,17 +73,14 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
             UsernameAlreadyExistsError: If `input.username` is already taken.
             EmailAlreadyExistsError: If `input.email` is already taken.
         """
-        if input.user_id is None:
-            LOG.info("user is not authenticated")
-            raise UserIsNotAuthenticatedError()
+        user_id = input.ensure_authenticated()
         password_hash: PasswordHash | NotSet = NotSet.NOT_SET
         if input.password is not NotSet.NOT_SET:
             password_hash = await self._password_hasher.hash_password(input.password)
         updated_user = await self._user_repository.update(
-            id=input.user_id,
+            id=user_id,
             input=input.convert(password_hash),
         )
         if updated_user is None:
             LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
-            raise UserDoesNotExistError()
         return UpdateCurrentUserResult(updated_user, input.token)
