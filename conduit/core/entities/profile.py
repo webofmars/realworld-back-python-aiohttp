@@ -14,6 +14,7 @@ from conduit.core.entities.user import UserId, Username
 
 @dataclass(frozen=True)
 class Profile:
+    user_id: UserId
     username: Username
     bio: str
     image: URL | None

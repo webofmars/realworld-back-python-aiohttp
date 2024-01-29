@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 
 from conduit.core.entities.article import ArticleId, ArticleRepository, ArticleSlug
+from conduit.core.entities.errors import PermissionDeniedError
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -33,11 +34,16 @@ class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
 
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
+            PermissionDeniedError: If user is not allowed to delete the article.
         """
         user_id = input.ensure_authenticated()
-        deleted_article_id = await self._repository.delete(input.slug, user_id)
-        if deleted_article_id is None:
-            LOG.info("could not delete article", extra={"input": input})
-        else:
-            LOG.info("article has been deleted", extra={"id": deleted_article_id, "input": input})
+        article = await self._repository.get_by_slug(input.slug)
+        if article is None:
+            LOG.info("could not delete article, article not found", extra={"input": input})
+            return DeleteArticleResult(None)
+        if article.author.user_id != user_id:
+            LOG.info("user is not allowed to delete the article", extra={"input": input})
+            raise PermissionDeniedError()
+        deleted_article_id = await self._repository.delete(article.id)
+        LOG.info("article has been deleted", extra={"input": input})
         return DeleteArticleResult(deleted_article_id)

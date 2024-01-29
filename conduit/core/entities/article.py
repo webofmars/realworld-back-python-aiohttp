@@ -85,9 +85,9 @@ class ArticleRepository(t.Protocol):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def update(self, slug: ArticleSlug, input: UpdateArticleInput, by: UserId) -> Article | None:
+    async def update(self, id: ArticleId, input: UpdateArticleInput, by: UserId) -> Article | None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def delete(self, slug: ArticleSlug, by: UserId) -> ArticleId | None:
+    async def delete(self, id: ArticleId) -> ArticleId | None:
         raise NotImplementedError()

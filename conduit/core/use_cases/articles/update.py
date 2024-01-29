@@ -14,6 +14,7 @@ from conduit.core.entities.article import (
     UpdateArticleInput as RepositoryUpdateArticleInput,
 )
 from conduit.core.entities.common import NotSet
+from conduit.core.entities.errors import PermissionDeniedError
 from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
@@ -46,10 +47,18 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
 
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
+            PermissionDeniedError: If user is not allowed to update the article.
         """
         user_id = input.ensure_authenticated()
+        article = await self._repository.get_by_slug(input.slug)
+        if article is None:
+            LOG.info("could not update article, article not found", extra={"input": input})
+            return UpdateArticleResult(None)
+        if article.author.user_id != user_id:
+            LOG.info("user is not allowed to update article", extra={"input": input})
+            raise PermissionDeniedError()
         updated_article = await self._repository.update(
-            input.slug,
+            article.id,
             RepositoryUpdateArticleInput(
                 title=input.title,
                 description=input.description,
@@ -57,8 +66,5 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
             ),
             by=user_id,
         )
-        if updated_article is None:
-            LOG.info("could not update article", extra={"slug": input.slug, "user_id": user_id})
-        else:
-            LOG.info("article has been updated", extra={"id": updated_article.id, "slug": updated_article.slug})
+        LOG.info("article has been updated", extra={"id": updated_article.id if updated_article is not None else None})
         return UpdateArticleResult(updated_article)
