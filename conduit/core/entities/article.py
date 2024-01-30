@@ -58,6 +58,7 @@ class UpdateArticleInput:
     title: str | NotSet = NotSet.NOT_SET
     description: str | NotSet = NotSet.NOT_SET
     body: str | NotSet = NotSet.NOT_SET
+    is_favorite: bool | NotSet = NotSet.NOT_SET
 
 
 class ArticleRepository(t.Protocol):

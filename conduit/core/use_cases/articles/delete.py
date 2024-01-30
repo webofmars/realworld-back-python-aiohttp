@@ -5,10 +5,12 @@ __all__ = [
 ]
 
 import logging
-from dataclasses import dataclass
+import typing as t
+from dataclasses import dataclass, replace
 
 from conduit.core.entities.article import ArticleId, ArticleRepository, ArticleSlug
 from conduit.core.entities.errors import PermissionDeniedError
+from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -18,6 +20,9 @@ LOG = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class DeleteArticleInput(WithAuthenticationInput):
     slug: ArticleSlug
+
+    def with_user_id(self, id: UserId) -> t.Self:
+        return replace(self, user_id=id)
 
 
 @dataclass(frozen=True)
@@ -41,7 +46,7 @@ class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
         if article is None:
             LOG.info("could not delete article, article not found", extra={"input": input})
             return DeleteArticleResult(None)
-        if article.author.user_id != user_id:
+        if article.author.id != user_id:
             LOG.info("user is not allowed to delete the article", extra={"input": input})
             raise PermissionDeniedError()
         deleted_article_id = await self._repository.delete(article.id)

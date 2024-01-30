@@ -5,11 +5,13 @@ __all__ = [
 ]
 
 import logging
-from dataclasses import dataclass
+import typing as t
+from dataclasses import dataclass, replace
 
 from conduit.core.entities.article import ArticleRepository, ArticleSlug
 from conduit.core.entities.comment import Comment, CommentRepository, CreateCommentInput
 from conduit.core.entities.errors import ArticleDoesNotExistError
+from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -20,6 +22,9 @@ LOG = logging.getLogger(__name__)
 class AddCommentToArticleInput(WithAuthenticationInput):
     article_slug: ArticleSlug
     body: str
+
+    def with_user_id(self, id: UserId) -> t.Self:
+        return replace(self, user_id=id)
 
 
 @dataclass(frozen=True)

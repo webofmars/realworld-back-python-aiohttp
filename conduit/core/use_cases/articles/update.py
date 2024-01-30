@@ -54,7 +54,7 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
         if article is None:
             LOG.info("could not update article, article not found", extra={"input": input})
             return UpdateArticleResult(None)
-        if article.author.user_id != user_id:
+        if article.author.id != user_id:
             LOG.info("user is not allowed to update article", extra={"input": input})
             raise PermissionDeniedError()
         updated_article = await self._repository.update(

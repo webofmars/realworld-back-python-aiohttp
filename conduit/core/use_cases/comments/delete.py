@@ -5,11 +5,13 @@ __all__ = [
 ]
 
 import logging
-from dataclasses import dataclass
+import typing as t
+from dataclasses import dataclass, replace
 
 from conduit.core.entities.article import ArticleRepository, ArticleSlug
 from conduit.core.entities.comment import CommentId, CommentRepository
 from conduit.core.entities.errors import PermissionDeniedError
+from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -20,6 +22,9 @@ LOG = logging.getLogger(__name__)
 class DeleteCommentInput(WithAuthenticationInput):
     article_slug: ArticleSlug
     comment_id: CommentId
+
+    def with_user_id(self, id: UserId) -> t.Self:
+        return replace(self, user_id=id)
 
 
 @dataclass(frozen=True)
@@ -48,7 +53,7 @@ class DeleteCommentUseCase(UseCase[DeleteCommentInput, DeleteCommentResult]):
         if comment is None:
             LOG.info("could not delete comment, comment not found", extra={"input": input})
             return DeleteCommentResult(None)
-        if comment.author.user_id != user_id:
+        if comment.author.id != user_id:
             LOG.info("user is not allowed to delete the comment", extra={"input": input})
             raise PermissionDeniedError()
         comment_id = await self._comment_repository.delete(comment.id)

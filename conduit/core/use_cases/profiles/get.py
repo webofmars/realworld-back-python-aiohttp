@@ -31,5 +31,5 @@ class GetProfileUseCase(UseCase[GetProfileInput, GetProfileResult]):
         self._profile_repository = profile_repository
 
     async def execute(self, input: GetProfileInput, /) -> GetProfileResult:
-        profile = await self._profile_repository.get(input.username, is_following_by=input.user_id)
+        profile = await self._profile_repository.get_by_username(input.username, by=input.user_id)
         return GetProfileResult(profile)

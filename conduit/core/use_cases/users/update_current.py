@@ -69,7 +69,6 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
 
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
-            UserDoesNotExistError: If user does not exist.
             UsernameAlreadyExistsError: If `input.username` is already taken.
             EmailAlreadyExistsError: If `input.email` is already taken.
         """
