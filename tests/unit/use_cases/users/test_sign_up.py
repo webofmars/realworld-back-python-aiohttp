@@ -2,7 +2,7 @@ import pytest
 
 from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
 from conduit.core.entities.user import CreateUserInput, Email, PasswordHash, RawPassword, Username
-from conduit.core.use_cases.users.sign_up import SignUpInput, SingUpUseCase
+from conduit.core.use_cases.users.sign_up import SignUpInput, SignUpUseCase
 from tests.unit.conftest import FakeAuthTokenGenerator, FakePasswordHasher, FakeUserRepository
 
 
@@ -11,8 +11,8 @@ def use_case(
     user_repository: FakeUserRepository,
     password_hasher: FakePasswordHasher,
     auth_token_generator: FakeAuthTokenGenerator,
-) -> SingUpUseCase:
-    return SingUpUseCase(user_repository, password_hasher, auth_token_generator)
+) -> SignUpUseCase:
+    return SignUpUseCase(user_repository, password_hasher, auth_token_generator)
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def use_case(
     ],
 )
 async def test_sign_up_success(
-    use_case: SingUpUseCase,
+    use_case: SignUpUseCase,
     user_repository: FakeUserRepository,
     password_hasher: FakePasswordHasher,
     auth_token_generator: FakeAuthTokenGenerator,
@@ -57,7 +57,7 @@ async def test_sign_up_success(
 
 
 async def test_sign_up_username_already_exists(
-    use_case: SingUpUseCase,
+    use_case: SignUpUseCase,
     user_repository: FakeUserRepository,
 ) -> None:
     # Arrange
@@ -82,7 +82,7 @@ async def test_sign_up_username_already_exists(
 
 
 async def test_sign_up_email_already_exists(
-    use_case: SingUpUseCase,
+    use_case: SignUpUseCase,
     user_repository: FakeUserRepository,
 ) -> None:
     # Arrange

@@ -1,7 +1,7 @@
 __all__ = [
     "SignUpInput",
     "SignUpResult",
-    "SingUpUseCase",
+    "SignUpUseCase",
 ]
 
 from dataclasses import dataclass
@@ -33,7 +33,7 @@ class SignUpResult:
     token: AuthToken
 
 
-class SingUpUseCase(UseCase[SignUpInput, SignUpResult]):
+class SignUpUseCase(UseCase[SignUpInput, SignUpResult]):
     def __init__(
         self,
         user_repository: UserRepository,
