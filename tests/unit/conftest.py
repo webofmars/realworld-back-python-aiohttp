@@ -127,3 +127,19 @@ def password_hasher() -> FakePasswordHasher:
 @pytest.fixture
 def auth_token_generator() -> AuthTokenGenerator:
     return FakeAuthTokenGenerator()
+
+
+@pytest.fixture
+async def existing_user(user_repository: UserRepository) -> User:
+    return await user_repository.create(
+        CreateUserInput(
+            username=Username("test"),
+            email=Email("test@test.test"),
+            password=PasswordHash("test"),
+        )
+    )
+
+
+@pytest.fixture
+async def existing_user_auth_token(existing_user: User, auth_token_generator: AuthTokenGenerator) -> AuthToken:
+    return await auth_token_generator.generate_token(existing_user)
