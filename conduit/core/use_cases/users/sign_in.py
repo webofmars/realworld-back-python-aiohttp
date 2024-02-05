@@ -55,8 +55,8 @@ class SignInUseCase(UseCase[SignInInput, SignInResult]):
         if user is None:
             LOG.info("user not found", extra={"email": input.email})
             raise InvalidCredentialsError()
-        verification = await self._password_hasher.verify(input.password, user.password)
-        if not verification.is_success:
+        is_password_valid = await self._password_hasher.verify(input.password, user.password)
+        if not is_password_valid:
             LOG.info("invalid password", extra={"user_id": user.id})
             raise InvalidCredentialsError()
         auth_token = await self._auth_token_generator.generate_token(user)

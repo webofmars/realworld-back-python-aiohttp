@@ -16,7 +16,6 @@ __all__ = [
 import abc
 import typing as t
 from dataclasses import dataclass
-from enum import Enum
 
 from yarl import URL
 
@@ -85,18 +84,10 @@ class AuthTokenGenerator(t.Protocol):
 
 
 class PasswordHasher(t.Protocol):
-    class VerificationResult(Enum):
-        SUCCESS = 1
-        FAIL = 2
-
-        @property
-        def is_success(self) -> bool:
-            return self is PasswordHasher.VerificationResult.SUCCESS
-
     @abc.abstractmethod
     async def hash_password(self, password: RawPassword) -> PasswordHash:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def verify(self, password: RawPassword, hash: PasswordHash) -> VerificationResult:
+    async def verify(self, password: RawPassword, hash: PasswordHash) -> bool:
         raise NotImplementedError()

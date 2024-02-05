@@ -27,6 +27,7 @@ psycopg2-binary = "^2.9.9"
 mypy = "^1.8.0"
 pytest = "^7.4.4"
 pytest-asyncio = "^0.23.3"
+pytest-cov = "^4.1.0"
 ruff = "^0.1.13"
 
 
@@ -55,6 +56,16 @@ combine-as-imports = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=conduit",
+    "--cov-report=term-missing",
+]
+asyncio_mode = "auto"
+console_output_style = "count"
+testpaths = ["tests"]
 
 
 [build-system]
