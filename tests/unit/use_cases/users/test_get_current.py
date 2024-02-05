@@ -1,8 +1,8 @@
 import pytest
 
 from conduit.core.entities.errors import UserIsNotAuthenticatedError
-from conduit.core.entities.user import User, AuthToken
-from conduit.core.use_cases.users.get_current import GetCurrentUserUseCase, GetCurrentUserInput
+from conduit.core.entities.user import AuthToken, User
+from conduit.core.use_cases.users.get_current import GetCurrentUserInput, GetCurrentUserUseCase
 from tests.unit.conftest import FakeUserRepository
 
 
