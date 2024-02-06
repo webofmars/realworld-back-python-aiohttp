@@ -1,6 +1,6 @@
 import pytest
 
-from conduit.core.entities.user import AuthToken, Email, PasswordHash, User, UserId, Username
+from conduit.core.entities.user import AuthToken, User, Username
 from conduit.core.use_cases.profiles.get import GetProfileInput, GetProfileUseCase
 from tests.unit.conftest import FakeProfileRepository
 
@@ -8,18 +8,6 @@ from tests.unit.conftest import FakeProfileRepository
 @pytest.fixture
 def use_case(profile_repository: FakeProfileRepository) -> GetProfileUseCase:
     return GetProfileUseCase(profile_repository)
-
-
-@pytest.fixture
-def follower() -> User:
-    return User(
-        id=UserId(123),
-        username=Username("follower"),
-        email=Email("follower@test.test"),
-        password=PasswordHash("test"),
-        bio="",
-        image=None,
-    )
 
 
 async def test_get_profile_not_following(
@@ -57,13 +45,12 @@ async def test_get_profile_following(
     profile_repository.followers[existing_user.id] = {follower.id}
 
     # Act
-    result = await use_case.execute(
-        GetProfileInput(
-            token=AuthToken("test"),
-            user_id=follower.id,
-            username=existing_user.username,
-        )
+    input = GetProfileInput(
+        token=AuthToken("test"),
+        user_id=follower.id,
+        username=existing_user.username,
     )
+    result = await use_case.execute(input.with_user_id(follower.id))
 
     # Assert
     assert result.profile is not None
