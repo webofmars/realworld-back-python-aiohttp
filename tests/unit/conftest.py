@@ -1,6 +1,7 @@
 __all__ = [
     "FakeAuthTokenGenerator",
     "FakePasswordHasher",
+    "FakeProfileRepository",
     "FakeUserRepository",
 ]
 
@@ -11,6 +12,7 @@ import pytest
 
 from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
+from conduit.core.entities.profile import Profile, ProfileRepository, UpdateProfileInput
 from conduit.core.entities.user import (
     AuthToken,
     AuthTokenGenerator,
@@ -93,6 +95,43 @@ class FakeUserRepository(UserRepository):
         return user
 
 
+class FakeProfileRepository(ProfileRepository):
+    def __init__(self) -> None:
+        self.followers: dict[UserId, set[UserId]] = {}
+        self.users: list[User] = []
+
+    async def get_by_username(self, username: Username, by: UserId | None = None) -> Profile | None:
+        user = next((u for u in self.users if u.username == username), None)
+        if user is None:
+            return None
+        return Profile(
+            id=user.id,
+            username=user.username,
+            bio=user.bio,
+            image=user.image,
+            is_following=False if by is None else by in self.followers.get(user.id, set()),
+        )
+
+    async def update(self, id: UserId, input: UpdateProfileInput, by: UserId) -> Profile | None:
+        user = next((u for u in self.users if u.id == id), None)
+        if user is None:
+            return None
+        if input.is_following is not NotSet.NOT_SET:
+            if input.is_following:
+                self.followers.setdefault(id, set())
+                self.followers[id].add(by)
+            else:
+                self.followers.setdefault(id, set())
+                self.followers[id].discard(by)
+        return Profile(
+            id=user.id,
+            username=user.username,
+            bio=user.bio,
+            image=user.image,
+            is_following=by in self.followers[user.id],
+        )
+
+
 class FakePasswordHasher(PasswordHasher):
     async def hash_password(self, password: RawPassword) -> PasswordHash:
         return PasswordHash(md5(password.encode()).hexdigest())
@@ -117,6 +156,11 @@ class FakeAuthTokenGenerator(AuthTokenGenerator):
 @pytest.fixture
 def user_repository() -> FakeUserRepository:
     return FakeUserRepository()
+
+
+@pytest.fixture
+def profile_repository() -> FakeProfileRepository:
+    return FakeProfileRepository()
 
 
 @pytest.fixture
