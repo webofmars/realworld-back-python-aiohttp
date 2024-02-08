@@ -166,7 +166,7 @@ class FakeAuthTokenGenerator(AuthTokenGenerator):
 
 
 class FakeArticleRepository(ArticleRepository):
-    def __init__(self, article: Article) -> None:
+    def __init__(self, article: t.Optional[Article]) -> None:
         self.article = article
         self.create_input: t.Optional[CreateArticleInput] = None
         self.create_by: t.Optional[UserId] = None
@@ -185,6 +185,7 @@ class FakeArticleRepository(ArticleRepository):
     async def create(self, input: CreateArticleInput, by: UserId) -> Article:
         self.create_input = input
         self.create_by = by
+        assert self.article is not None
         return self.article
 
     async def get_many(
@@ -208,7 +209,7 @@ class FakeArticleRepository(ArticleRepository):
     async def get_by_slug(self, slug: ArticleSlug, by: UserId | None = None) -> Article | None:
         self.get_by_slug_slug = slug
         self.get_by_slug_by = by
-        return None
+        return self.article
 
     async def update(self, id: ArticleId, input: UpdateArticleInput, by: UserId) -> Article | None:
         self.update_id = id
@@ -218,7 +219,7 @@ class FakeArticleRepository(ArticleRepository):
 
     async def delete(self, id: ArticleId) -> ArticleId | None:
         self.delete_id = id
-        return None
+        return self.article.id if self.article is not None else None
 
 
 @pytest.fixture
