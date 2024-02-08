@@ -19,9 +19,9 @@ LOG = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ListArticlesInput(WithOptionalAuthenticationInput):
-    tag: Tag | None
-    author: Username | None
-    favorite_of: Username | None
+    tag: Tag | None = None
+    author: Username | None = None
+    favorite_of: Username | None = None
     limit: int = 20
     offset: int = 0
 
