@@ -215,7 +215,7 @@ class FakeArticleRepository(ArticleRepository):
         self.update_id = id
         self.update_input = input
         self.update_by = by
-        return None
+        return self.article
 
     async def delete(self, id: ArticleId) -> ArticleId | None:
         self.delete_id = id
