@@ -31,7 +31,7 @@ class Article:
     body: str
     tags: list[Tag]
     created_at: dt.datetime
-    updated_at: dt.datetime
+    updated_at: dt.datetime | None
     is_favorite: bool
     favorite_of_user_count: int
     author: Profile
