@@ -22,7 +22,7 @@ CommentId = t.NewType("CommentId", int)
 class Comment:
     id: CommentId
     created_at: dt.datetime
-    updated_at: dt.datetime
+    updated_at: t.Optional[dt.datetime]
     body: str
     author: Profile
 

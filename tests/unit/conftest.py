@@ -1,6 +1,7 @@
 __all__ = [
     "FakeArticleRepository",
     "FakeAuthTokenGenerator",
+    "FakeCommentRepository",
     "FakePasswordHasher",
     "FakeProfileRepository",
     "FakeUserRepository",
@@ -22,6 +23,7 @@ from conduit.core.entities.article import (
     CreateArticleInput,
     UpdateArticleInput,
 )
+from conduit.core.entities.comment import Comment, CommentFilter, CommentId, CommentRepository, CreateCommentInput
 from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
 from conduit.core.entities.profile import Profile, ProfileRepository, UpdateProfileInput
@@ -222,6 +224,37 @@ class FakeArticleRepository(ArticleRepository):
         return self.article.id if self.article is not None else None
 
 
+class FakeCommentRepository(CommentRepository):
+    def __init__(self, comment: Comment) -> None:
+        self.comment = comment
+        self.create_input: t.Optional[CreateCommentInput] = None
+        self.create_by: t.Optional[UserId] = None
+        self.get_many_filter: t.Optional[CommentFilter] = None
+        self.get_many_by: t.Optional[UserId] = None
+        self.get_by_id_id: t.Optional[CommentId] = None
+        self.get_by_id_by: t.Optional[UserId] = None
+        self.delete_id: t.Optional[CommentId] = None
+
+    async def create(self, input: CreateCommentInput, by: UserId) -> Comment:
+        self.create_input = input
+        self.create_by = by
+        return self.comment
+
+    async def get_many(self, filter: CommentFilter, by: UserId | None = None) -> t.Iterable[Comment]:
+        self.get_many_filter = filter
+        self.get_many_by = by
+        return []
+
+    async def get_by_id(self, id: CommentId, by: UserId | None = None) -> Comment | None:
+        self.get_by_id_id = id
+        self.get_by_id_by = by
+        return self.comment
+
+    async def delete(self, id: CommentId) -> CommentId | None:
+        self.delete_id = id
+        return id
+
+
 @pytest.fixture
 def user_repository() -> FakeUserRepository:
     return FakeUserRepository()
@@ -256,8 +289,30 @@ def existing_article() -> Article:
 
 
 @pytest.fixture
+def existing_comment() -> Comment:
+    return Comment(
+        id=CommentId(1),
+        created_at=dt.datetime.utcnow(),
+        updated_at=None,
+        body="test",
+        author=Profile(
+            id=UserId(1),
+            username=Username("test-username"),
+            bio="",
+            image=None,
+            is_following=False,
+        ),
+    )
+
+
+@pytest.fixture
 def article_repository(existing_article: Article) -> FakeArticleRepository:
     return FakeArticleRepository(existing_article)
+
+
+@pytest.fixture
+def comment_repository(existing_comment: Comment) -> FakeCommentRepository:
+    return FakeCommentRepository(existing_comment)
 
 
 @pytest.fixture
