@@ -226,7 +226,7 @@ class FakeArticleRepository(ArticleRepository):
 
 class FakeCommentRepository(CommentRepository):
     def __init__(self, comment: Comment) -> None:
-        self.comment = comment
+        self.comment: t.Optional[Comment] = comment
         self.create_input: t.Optional[CreateCommentInput] = None
         self.create_by: t.Optional[UserId] = None
         self.get_many_filter: t.Optional[CommentFilter] = None
@@ -238,6 +238,7 @@ class FakeCommentRepository(CommentRepository):
     async def create(self, input: CreateCommentInput, by: UserId) -> Comment:
         self.create_input = input
         self.create_by = by
+        assert self.comment is not None
         return self.comment
 
     async def get_many(self, filter: CommentFilter, by: UserId | None = None) -> t.Iterable[Comment]:
