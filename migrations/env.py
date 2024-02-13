@@ -6,11 +6,19 @@ from alembic import context
 from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import URL, create_engine
+from sqlalchemy import create_engine
+
+from conduit.config import db_url
+from conduit.db.tables import METADATA
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+
+# SQLAlchemy's MetaData for 'autogenerate' support
+target_metadata = METADATA
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -49,19 +57,11 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = create_engine(
-        url=URL.create(
-            drivername="postgresql+psycopg2",
-            username=get_env("POSTGRES_USER"),
-            password=get_env("POSTGRES_PASSWORD"),
-            database=get_env("POSTGRES_DB"),
-            host=get_env("POSTGRES_HOST"),
-            port=int(get_env("POSTGRES_PORT")),
-        )
-    )
+    connectable = create_engine(url=db_url(driver="postgresql+psycopg2"))
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
         )
         with context.begin_transaction():

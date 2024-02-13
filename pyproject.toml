@@ -14,6 +14,7 @@ python = ">=3.11 <3.12"
 aiohttp = "^3.9.1"
 asyncpg = "^0.29.0"
 dependency-injector = "^4.41.0"
+dynaconf = "^3.2.4"
 sqlalchemy = "^2.0.25"
 yarl = "^1.9.4"
 
@@ -38,6 +39,12 @@ strict = true
 warn_unreachable = true
 show_error_context = true
 pretty = true
+
+
+[[tool.mypy.overrides]]
+module = ["dynaconf.*"]
+ignore_errors = true
+ignore_missing_imports = true
 
 
 [tool.ruff]
