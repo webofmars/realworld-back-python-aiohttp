@@ -1,21 +1,21 @@
 import pytest
 
 from conduit.core.entities.article import Article, ArticleSlug
-from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User
 from conduit.core.use_cases.articles.favorite import FavoriteArticleInput, FavoriteArticleUseCase
-from tests.unit.conftest import FakeArticleRepository
+from tests.unit.conftest import FakeArticleRepository, FakeFavoriteRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(article_repository: FakeArticleRepository) -> FavoriteArticleUseCase:
-    return FavoriteArticleUseCase(article_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> FavoriteArticleUseCase:
+    return FavoriteArticleUseCase(unit_of_work)
 
 
 async def test_favorite_article_success(
     use_case: FavoriteArticleUseCase,
     article_repository: FakeArticleRepository,
+    favorite_repository: FakeFavoriteRepository,
     existing_user: User,
     existing_article: Article,
 ) -> None:
@@ -24,20 +24,17 @@ async def test_favorite_article_success(
     result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
-    assert result.article == existing_article
-    assert article_repository.get_by_slug_slug == ArticleSlug("test-article-slug-1")
-    assert article_repository.update_input is not None
-    assert article_repository.update_input.title is NotSet.NOT_SET
-    assert article_repository.update_input.description is NotSet.NOT_SET
-    assert article_repository.update_input.body is NotSet.NOT_SET
-    assert article_repository.update_input.is_favorite is True
-    assert article_repository.update_id == existing_article.id
-    assert article_repository.update_by == existing_user.id
+    assert result.article is not None
+    assert result.article.v == existing_article
+    assert result.article.is_article_favorite
+    assert await favorite_repository.is_favorite(existing_article.id, of=existing_user.id)
 
 
 async def test_favorite_article_not_authenticated(
     use_case: FavoriteArticleUseCase,
-    article_repository: FakeArticleRepository,
+    favorite_repository: FakeFavoriteRepository,
+    existing_article: Article,
+    existing_user: User,
 ) -> None:
     # Act
     with pytest.raises(UserIsNotAuthenticatedError):
@@ -49,12 +46,13 @@ async def test_favorite_article_not_authenticated(
         await use_case.execute(input)
 
     # Assert
-    assert article_repository.update_id is None
+    assert not await favorite_repository.is_favorite(existing_article.id, of=existing_user.id)
 
 
 async def test_favorite_article_not_found(
     use_case: FavoriteArticleUseCase,
     article_repository: FakeArticleRepository,
+    favorite_repository: FakeFavoriteRepository,
     existing_user: User,
     existing_article: Article,
 ) -> None:
@@ -72,4 +70,4 @@ async def test_favorite_article_not_found(
     # Assert
     assert result.article is None
     assert article_repository.get_by_slug_slug == ArticleSlug("test-article-slug-2")
-    assert article_repository.update_id is None
+    assert not await favorite_repository.is_favorite(existing_article.id, of=existing_user.id)

@@ -8,7 +8,7 @@ import typing as t
 
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 from yarl import URL
 
 from conduit.core.entities.common import NotSet
@@ -32,10 +32,10 @@ class PostgresqlUserRepository(UserRepository):
 
     def __init__(
         self,
-        engine: AsyncEngine,
+        connection: AsyncConnection,
         now: t.Callable[[], dt.datetime] = dt.datetime.utcnow,
     ) -> None:
-        self._engine = engine
+        self._connection = connection
         self._now = now
 
     async def create(self, input: CreateUserInput) -> User:
@@ -50,31 +50,46 @@ class PostgresqlUserRepository(UserRepository):
             )
             .returning(tables.USER)
         )
-        async with self._engine.begin() as connection:
-            try:
-                result = await connection.execute(stmt)
-            except IntegrityError as e:
-                self._handle_integrity_error(e)
-            row = result.one()
-            return self._decode_user(row)
+        try:
+            result = await self._connection.execute(stmt)
+        except IntegrityError as e:
+            self._handle_integrity_error(e)
+        row = result.one()
+        return self._decode_user(row)
 
     async def get_by_email(self, email: Email) -> User | None:
         stmt = sa.select(tables.USER).where(tables.USER.c.email == email)
-        async with self._engine.connect() as connection:
-            result = await connection.execute(stmt)
-            row = result.one_or_none()
-            if row is None:
-                return None
-            return self._decode_user(row)
+        result = await self._connection.execute(stmt)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return self._decode_user(row)
+
+    async def get_by_username(self, username: Username) -> User | None:
+        stmt = sa.select(tables.USER).where(tables.USER.c.username == username)
+        result = await self._connection.execute(stmt)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return self._decode_user(row)
 
     async def get_by_id(self, id: UserId) -> User | None:
         stmt = sa.select(tables.USER).where(tables.USER.c.id == id)
-        async with self._engine.connect() as connection:
-            result = await connection.execute(stmt)
-            row = result.one_or_none()
-            if row is None:
-                return None
-            return self._decode_user(row)
+        result = await self._connection.execute(stmt)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return self._decode_user(row)
+
+    async def get_by_ids(self, ids: t.Collection[UserId]) -> dict[UserId, User]:
+        stmt = sa.select(tables.USER).where(tables.USER.c.id.in_(ids))
+        result = await self._connection.execute(stmt)
+        rows = result.all()
+        users = {}
+        for row in rows:
+            user = self._decode_user(row)
+            users[user.id] = user
+        return users
 
     async def update(self, id: UserId, input: UpdateUserInput) -> User | None:
         stmt = (
@@ -90,15 +105,14 @@ class PostgresqlUserRepository(UserRepository):
             stmt = stmt.values(bio=input.bio)
         if input.image is not NotSet.NOT_SET:
             stmt = stmt.values(image_url=str(input.image) if input.image is not None else None)
-        async with self._engine.begin() as connection:
-            try:
-                result = await connection.execute(stmt)
-            except IntegrityError as e:
-                self._handle_integrity_error(e)
-            row = result.one_or_none()
-            if row is None:
-                return None
-            return self._decode_user(row)
+        try:
+            result = await self._connection.execute(stmt)
+        except IntegrityError as e:
+            self._handle_integrity_error(e)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return self._decode_user(row)
 
     def _decode_user(self, db_row: t.Any) -> User:
         return User(

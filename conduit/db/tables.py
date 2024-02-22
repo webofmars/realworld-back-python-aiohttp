@@ -1,4 +1,5 @@
 __all__ = [
+    "FOLLOWER",
     "METADATA",
     "USER",
 ]
@@ -19,4 +20,15 @@ USER = sa.Table(
     sa.Column("image_url", sa.Text, nullable=True),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.Column("updated_at", sa.DateTime, nullable=True),
+)
+
+
+FOLLOWER = sa.Table(
+    "follower",
+    METADATA,
+    sa.Column("id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
+    sa.Column("followed_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.PrimaryKeyConstraint("id", "followed_id"),
+    sa.Index("follower_followed_id_idx", "followed_id"),
 )

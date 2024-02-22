@@ -8,9 +8,15 @@ import logging
 import typing as t
 from dataclasses import dataclass, field, replace
 
-from conduit.core.entities.article import Article, ArticleRepository, CreateArticleInput as RepositoryCreateArticleInput
-from conduit.core.entities.tag import Tag
-from conduit.core.entities.user import UserId
+from conduit.core.entities.article import (
+    Article,
+    ArticleWithExtra,
+    CreateArticleInput as RepositoryCreateArticleInput,
+    Tag,
+)
+from conduit.core.entities.errors import UserIsNotAuthenticatedError
+from conduit.core.entities.unit_of_work import UnitOfWork
+from conduit.core.entities.user import User, UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -30,12 +36,12 @@ class CreateArticleInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class CreateArticleResult:
-    article: Article
+    article: ArticleWithExtra
 
 
 class CreateArticleUseCase(UseCase[CreateArticleInput, CreateArticleResult]):
-    def __init__(self, repository: ArticleRepository) -> None:
-        self._repository = repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: CreateArticleInput, /) -> CreateArticleResult:
         """Create a new article.
@@ -44,23 +50,34 @@ class CreateArticleUseCase(UseCase[CreateArticleInput, CreateArticleResult]):
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
         user_id = input.ensure_authenticated()
-        article = await self._repository.create(
-            RepositoryCreateArticleInput(
-                title=input.title,
-                description=input.description,
-                body=input.body,
-                tags=self._prepare_tags(input.tags),
-            ),
-            by=user_id,
+        author = await self._get_author(user_id)
+        article = await self._create_article(input, author.id)
+        return CreateArticleResult(
+            ArticleWithExtra(
+                v=article,
+                author=author,
+                tags=input.tags,
+            )
         )
-        LOG.info("article has been created", extra={"id": article.id, "slug": article.slug})
-        return CreateArticleResult(article)
 
-    def _prepare_tags(self, tags: list[Tag]) -> list[Tag]:
-        result = []
-        seen = set()
-        for tag in tags:
-            if tag not in seen:
-                seen.add(tag)
-                result.append(tag)
-        return result
+    async def _get_author(self, user_id: UserId) -> User:
+        async with self._unit_of_work.begin() as uow:
+            author = await uow.users.get_by_id(user_id)
+        if author is None:
+            LOG.info("could not find user by id", extra={"user_id": user_id})
+            raise UserIsNotAuthenticatedError()
+        return author
+
+    async def _create_article(self, input: CreateArticleInput, author_id: UserId) -> Article:
+        async with self._unit_of_work.begin() as uow:
+            article = await uow.articles.create(
+                RepositoryCreateArticleInput(
+                    author_id=author_id,
+                    title=input.title,
+                    description=input.description,
+                    body=input.body,
+                ),
+            )
+            await uow.tags.create(article.id, input.tags)
+        LOG.info("article has been created", extra={"id": article.id, "slug": article.slug, "tags": input.tags})
+        return article

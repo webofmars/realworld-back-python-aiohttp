@@ -7,15 +7,12 @@ from conduit.core.entities.comment import Comment, CommentId
 from conduit.core.entities.errors import PermissionDeniedError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User, UserId
 from conduit.core.use_cases.comments.delete import DeleteCommentInput, DeleteCommentUseCase
-from tests.unit.conftest import FakeArticleRepository, FakeCommentRepository
+from tests.unit.conftest import FakeArticleRepository, FakeCommentRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(
-    article_repository: FakeArticleRepository,
-    comment_repository: FakeCommentRepository,
-) -> DeleteCommentUseCase:
-    return DeleteCommentUseCase(article_repository, comment_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> DeleteCommentUseCase:
+    return DeleteCommentUseCase(unit_of_work)
 
 
 async def test_delete_comment_success(
@@ -123,7 +120,7 @@ async def test_delete_comment_permission_denied(
     assert comment_repository.comment is not None
     comment_repository.comment = replace(
         comment_repository.comment,
-        author=replace(comment_repository.comment.author, id=UserId(123456)),
+        author_id=UserId(123456),
     )
 
     # Act

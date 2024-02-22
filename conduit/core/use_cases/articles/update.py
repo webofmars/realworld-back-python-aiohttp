@@ -9,15 +9,24 @@ from dataclasses import dataclass, replace
 
 from conduit.core.entities.article import (
     Article,
-    ArticleRepository,
+    ArticleId,
     ArticleSlug,
+    ArticleWithExtra,
     UpdateArticleInput as RepositoryUpdateArticleInput,
 )
 from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import PermissionDeniedError
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
+from conduit.core.use_cases.articles.common import (
+    get_author,
+    get_favorite_count_for_article,
+    get_tags_for_article,
+    is_favorite,
+)
 from conduit.core.use_cases.auth import WithAuthenticationInput
+from conduit.core.use_cases.common import get_article, is_user_followed
 
 LOG = logging.getLogger(__name__)
 
@@ -35,12 +44,12 @@ class UpdateArticleInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class UpdateArticleResult:
-    article: Article | None
+    article: ArticleWithExtra | None
 
 
 class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
-    def __init__(self, repository: ArticleRepository) -> None:
-        self._repository = repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: UpdateArticleInput, /) -> UpdateArticleResult:
         """Update an existing article.
@@ -50,21 +59,40 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
             PermissionDeniedError: If user is not allowed to update the article.
         """
         user_id = input.ensure_authenticated()
-        article = await self._repository.get_by_slug(input.slug)
+        article = await get_article(self._unit_of_work, input.slug)
         if article is None:
-            LOG.info("could not update article, article not found", extra={"input": input})
             return UpdateArticleResult(None)
-        if article.author.id != user_id:
+        if article.author_id != user_id:
             LOG.info("user is not allowed to update article", extra={"input": input})
             raise PermissionDeniedError()
-        updated_article = await self._repository.update(
-            article.id,
-            RepositoryUpdateArticleInput(
-                title=input.title,
-                description=input.description,
-                body=input.body,
-            ),
-            by=user_id,
+        author = await get_author(self._unit_of_work, article.author_id)
+        tags = await get_tags_for_article(self._unit_of_work, article.id)
+        author_followed = await is_user_followed(self._unit_of_work, author.id, by=user_id)
+        favorite = await is_favorite(self._unit_of_work, article.id, of=user_id)
+        favorite_count = await get_favorite_count_for_article(self._unit_of_work, article.id)
+        updated_article = await self._update_article(article.id, input)
+        if updated_article is None:
+            return UpdateArticleResult(None)
+        return UpdateArticleResult(
+            ArticleWithExtra(
+                v=updated_article,
+                author=author,
+                tags=tags,
+                is_author_followed=author_followed,
+                is_article_favorite=favorite,
+                favorite_of_user_count=favorite_count,
+            )
         )
+
+    async def _update_article(self, article_id: ArticleId, input: UpdateArticleInput) -> Article | None:
+        async with self._unit_of_work.begin() as uow:
+            updated_article = await uow.articles.update(
+                article_id,
+                RepositoryUpdateArticleInput(
+                    title=input.title,
+                    description=input.description,
+                    body=input.body,
+                ),
+            )
         LOG.info("article has been updated", extra={"id": updated_article.id if updated_article is not None else None})
-        return UpdateArticleResult(updated_article)
+        return updated_article

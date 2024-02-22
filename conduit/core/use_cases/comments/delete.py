@@ -8,12 +8,14 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.article import ArticleRepository, ArticleSlug
-from conduit.core.entities.comment import CommentId, CommentRepository
+from conduit.core.entities.article import ArticleSlug
+from conduit.core.entities.comment import CommentId
 from conduit.core.entities.errors import PermissionDeniedError
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
+from conduit.core.use_cases.common import get_article
 
 LOG = logging.getLogger(__name__)
 
@@ -33,9 +35,8 @@ class DeleteCommentResult:
 
 
 class DeleteCommentUseCase(UseCase[DeleteCommentInput, DeleteCommentResult]):
-    def __init__(self, article_repository: ArticleRepository, comment_repository: CommentRepository) -> None:
-        self._article_repository = article_repository
-        self._comment_repository = comment_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: DeleteCommentInput, /) -> DeleteCommentResult:
         """Delete an existing comment.
@@ -45,17 +46,18 @@ class DeleteCommentUseCase(UseCase[DeleteCommentInput, DeleteCommentResult]):
             PermissionDeniedError: If user is not allowed to delete the comment.
         """
         user_id = input.ensure_authenticated()
-        article = await self._article_repository.get_by_slug(input.article_slug)
+        article = await get_article(self._unit_of_work, input.article_slug)
         if article is None:
-            LOG.info("could not delete comment, article not found", extra={"input": input})
             return DeleteCommentResult(None)
-        comment = await self._comment_repository.get_by_id(input.comment_id)
+        async with self._unit_of_work.begin() as uow:
+            comment = await uow.comments.get_by_id(input.comment_id)
         if comment is None:
             LOG.info("could not delete comment, comment not found", extra={"input": input})
             return DeleteCommentResult(None)
-        if comment.author.id != user_id:
+        if comment.author_id != user_id:
             LOG.info("user is not allowed to delete the comment", extra={"input": input})
             raise PermissionDeniedError()
-        comment_id = await self._comment_repository.delete(comment.id)
+        async with self._unit_of_work.begin() as uow:
+            comment_id = await uow.comments.delete(comment.id)
         LOG.info("comment has been deleted", extra={"input": input})
         return DeleteCommentResult(comment_id)

@@ -2,17 +2,23 @@ __all__ = [
     "FakeArticleRepository",
     "FakeAuthTokenGenerator",
     "FakeCommentRepository",
+    "FakeFavoriteRepository",
+    "FakeFollowerRepository",
     "FakePasswordHasher",
-    "FakeProfileRepository",
+    "FakeTagRepository",
+    "FakeUnitOfWork",
     "FakeUserRepository",
 ]
 
 import datetime as dt
 import typing as t
-from dataclasses import replace
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from hashlib import md5
+from itertools import chain
 
 import pytest
+from yarl import URL
 
 from conduit.core.entities.article import (
     Article,
@@ -21,17 +27,19 @@ from conduit.core.entities.article import (
     ArticleRepository,
     ArticleSlug,
     CreateArticleInput,
+    FavoriteRepository,
+    Tag,
+    TagRepository,
     UpdateArticleInput,
 )
 from conduit.core.entities.comment import Comment, CommentFilter, CommentId, CommentRepository, CreateCommentInput
-from conduit.core.entities.common import NotSet
-from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
-from conduit.core.entities.profile import Profile, ProfileRepository, UpdateProfileInput
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import (
     AuthToken,
     AuthTokenGenerator,
     CreateUserInput,
     Email,
+    FollowerRepository,
     PasswordHash,
     PasswordHasher,
     RawPassword,
@@ -44,106 +52,68 @@ from conduit.core.entities.user import (
 
 
 class FakeUserRepository(UserRepository):
-    def __init__(self) -> None:
-        self.users: list[User] = []
-        self.usernames: set[Username] = set()
-        self.emails: set[Email] = set()
+    def __init__(self, user: User) -> None:
+        self.user: User | None = user
+        self.create_input: CreateUserInput | None = None
+        self.create_error: Exception | None = None
+        self.get_by_email_email: Email | None = None
+        self.get_by_id_id: UserId | None = None
+        self.get_by_username_username: Username | None = None
+        self.update_id: UserId | None = None
+        self.update_input: UpdateUserInput | None = None
+        self.update_error: Exception | None = None
+        self.get_by_ids_ids: t.Collection[UserId] | None = None
 
     async def create(self, input: CreateUserInput) -> User:
-        if input.username in self.usernames:
-            raise UsernameAlreadyExistsError()
-        if input.email in self.emails:
-            raise EmailAlreadyExistsError()
-        new_user = User(
-            id=UserId(len(self.users) + 1),
-            username=input.username,
-            email=input.email,
-            password=input.password,
-            bio="",
-            image=None,
-        )
-        self.users.append(new_user)
-        self.usernames.add(new_user.username)
-        self.emails.add(new_user.email)
-        return new_user
+        self.create_input = input
+        if self.create_error is not None:
+            raise self.create_error
+        assert self.user is not None
+        return self.user
 
     async def get_by_email(self, email: Email) -> User | None:
-        for user in self.users:
-            if user.email == email:
-                return user
-        return None
+        self.get_by_email_email = email
+        return self.user
 
     async def get_by_id(self, id: UserId) -> User | None:
-        for user in self.users:
-            if user.id == id:
-                return user
-        return None
+        self.get_by_id_id = id
+        return self.user
+
+    async def get_by_username(self, username: Username) -> User | None:
+        self.get_by_username_username = username
+        return self.user
+
+    async def get_by_ids(self, ids: t.Collection[UserId]) -> dict[UserId, User]:
+        self.get_by_ids_ids = ids
+        if self.user is None:
+            return {}
+        return {self.user.id: self.user}
 
     async def update(self, id: UserId, input: UpdateUserInput) -> User | None:
-        ix: int | None = None
-        user: User | None = None
-        for i, u in enumerate(self.users):
-            if u.id == id:
-                user = u
-                ix = i
-                break
-        if user is None or ix is None:
-            return None
-        if input.username is not NotSet.NOT_SET:
-            if input.username in self.usernames:
-                raise UsernameAlreadyExistsError()
-            self.usernames.remove(user.username)
-            user = replace(user, username=input.username)
-        if input.email is not NotSet.NOT_SET:
-            if input.email in self.emails:
-                raise EmailAlreadyExistsError()
-            self.emails.remove(user.email)
-            user = replace(user, email=input.email)
-        if input.password is not NotSet.NOT_SET:
-            user = replace(user, password=input.password)
-        if input.bio is not NotSet.NOT_SET:
-            user = replace(user, bio=input.bio)
-        if input.image is not NotSet.NOT_SET:
-            user = replace(user, image=input.image)
-        self.users[ix] = user
-        return user
+        self.update_id = id
+        self.update_input = input
+        if self.update_error is not None:
+            raise self.update_error
+        return self.user
 
 
-class FakeProfileRepository(ProfileRepository):
+class FakeFollowerRepository(FollowerRepository):
     def __init__(self) -> None:
         self.followers: dict[UserId, set[UserId]] = {}
-        self.users: list[User] = []
 
-    async def get_by_username(self, username: Username, by: UserId | None = None) -> Profile | None:
-        user = next((u for u in self.users if u.username == username), None)
-        if user is None:
-            return None
-        return Profile(
-            id=user.id,
-            username=user.username,
-            bio=user.bio,
-            image=user.image,
-            is_following=False if by is None else by in self.followers.get(user.id, set()),
-        )
+    async def follow(self, *, follower_id: UserId, followed_id: UserId) -> None:
+        self.followers.setdefault(followed_id, set())
+        self.followers[followed_id].add(follower_id)
 
-    async def update(self, id: UserId, input: UpdateProfileInput, by: UserId) -> Profile | None:
-        user = next((u for u in self.users if u.id == id), None)
-        if user is None:
-            return None
-        if input.is_following is not NotSet.NOT_SET:
-            if input.is_following:
-                self.followers.setdefault(id, set())
-                self.followers[id].add(by)
-            else:
-                self.followers.setdefault(id, set())
-                self.followers[id].discard(by)
-        return Profile(
-            id=user.id,
-            username=user.username,
-            bio=user.bio,
-            image=user.image,
-            is_following=by in self.followers[user.id],
-        )
+    async def unfollow(self, *, follower_id: UserId, followed_id: UserId) -> None:
+        self.followers.setdefault(followed_id, set())
+        self.followers[followed_id].discard(follower_id)
+
+    async def is_followed(self, id: UserId, *, by: UserId) -> bool:
+        return by in self.followers.get(id, set())
+
+    async def are_followed(self, ids: t.Collection[UserId], by: UserId) -> dict[UserId, bool]:
+        return {id: await self.is_followed(id, by=by) for id in ids}
 
 
 class FakePasswordHasher(PasswordHasher):
@@ -171,22 +141,17 @@ class FakeArticleRepository(ArticleRepository):
     def __init__(self, article: t.Optional[Article]) -> None:
         self.article = article
         self.create_input: t.Optional[CreateArticleInput] = None
-        self.create_by: t.Optional[UserId] = None
         self.get_many_filter: t.Optional[ArticleFilter] = None
         self.get_many_limit: t.Optional[int] = None
         self.get_many_offset: t.Optional[int] = None
-        self.get_many_by: t.Optional[UserId] = None
         self.count_filter: t.Optional[ArticleFilter] = None
         self.get_by_slug_slug: t.Optional[ArticleSlug] = None
-        self.get_by_slug_by: t.Optional[UserId] = None
         self.update_id: t.Optional[ArticleId] = None
         self.update_input: t.Optional[UpdateArticleInput] = None
-        self.update_by: t.Optional[UserId] = None
         self.delete_id: t.Optional[ArticleId] = None
 
-    async def create(self, input: CreateArticleInput, by: UserId) -> Article:
+    async def create(self, input: CreateArticleInput) -> Article:
         self.create_input = input
-        self.create_by = by
         assert self.article is not None
         return self.article
 
@@ -196,27 +161,23 @@ class FakeArticleRepository(ArticleRepository):
         *,
         limit: int,
         offset: int,
-        by: UserId | None = None,
-    ) -> t.Iterable[Article]:
+    ) -> list[Article]:
         self.get_many_filter = filter
         self.get_many_limit = limit
         self.get_many_offset = offset
-        self.get_many_by = by
         return []
 
     async def count(self, filter: ArticleFilter) -> int:
         self.count_filter = filter
         return 0
 
-    async def get_by_slug(self, slug: ArticleSlug, by: UserId | None = None) -> Article | None:
+    async def get_by_slug(self, slug: ArticleSlug) -> Article | None:
         self.get_by_slug_slug = slug
-        self.get_by_slug_by = by
         return self.article
 
-    async def update(self, id: ArticleId, input: UpdateArticleInput, by: UserId) -> Article | None:
+    async def update(self, id: ArticleId, input: UpdateArticleInput) -> Article | None:
         self.update_id = id
         self.update_input = input
-        self.update_by = by
         return self.article
 
     async def delete(self, id: ArticleId) -> ArticleId | None:
@@ -224,31 +185,69 @@ class FakeArticleRepository(ArticleRepository):
         return self.article.id if self.article is not None else None
 
 
+class FakeFavoriteRepository(FavoriteRepository):
+    def __init__(self) -> None:
+        self.favorites: dict[ArticleId, set[UserId]] = {}
+
+    async def add(self, user_id: UserId, article_id: ArticleId) -> int:
+        self.favorites.setdefault(article_id, set())
+        self.favorites[article_id].add(user_id)
+        return len(self.favorites[article_id])
+
+    async def remove(self, user_id: UserId, article_id: ArticleId) -> int:
+        self.favorites.setdefault(article_id, set())
+        self.favorites[article_id].discard(user_id)
+        return len(self.favorites[article_id])
+
+    async def is_favorite(self, article_id: ArticleId, of: UserId) -> bool:
+        return of in self.favorites.get(article_id, set())
+
+    async def are_favorite(self, article_ids: t.Collection[ArticleId], of: UserId) -> dict[ArticleId, bool]:
+        return {article_id: await self.is_favorite(article_id, of) for article_id in article_ids}
+
+    async def count(self, article_id: ArticleId) -> int:
+        return len(self.favorites.get(article_id, set()))
+
+    async def count_many(self, article_ids: t.Collection[ArticleId]) -> dict[ArticleId, int]:
+        return {article_id: await self.count(article_id) for article_id in article_ids}
+
+
+class FakeTagRepository(TagRepository):
+    def __init__(self) -> None:
+        self.tags: dict[ArticleId, list[Tag]] = {}
+
+    async def create(self, article_id: ArticleId, tags: t.Collection[Tag]) -> None:
+        self.tags[article_id] = list(tags)
+
+    async def get_all(self) -> list[Tag]:
+        return list(chain.from_iterable(self.tags.values()))
+
+    async def get_for_article(self, article_id: ArticleId) -> list[Tag]:
+        return self.tags.get(article_id, [])
+
+    async def get_for_articles(self, article_ids: t.Collection[ArticleId]) -> dict[ArticleId, list[Tag]]:
+        return {article_id: await self.get_for_article(article_id) for article_id in article_ids}
+
+
 class FakeCommentRepository(CommentRepository):
     def __init__(self, comment: Comment) -> None:
         self.comment: t.Optional[Comment] = comment
         self.create_input: t.Optional[CreateCommentInput] = None
-        self.create_by: t.Optional[UserId] = None
         self.get_many_filter: t.Optional[CommentFilter] = None
-        self.get_many_by: t.Optional[UserId] = None
         self.get_by_id_id: t.Optional[CommentId] = None
-        self.get_by_id_by: t.Optional[UserId] = None
         self.delete_id: t.Optional[CommentId] = None
 
-    async def create(self, input: CreateCommentInput, by: UserId) -> Comment:
+    async def create(self, input: CreateCommentInput) -> Comment:
         self.create_input = input
-        self.create_by = by
         assert self.comment is not None
         return self.comment
 
-    async def get_many(self, filter: CommentFilter, by: UserId | None = None) -> t.Iterable[Comment]:
+    async def get_many(self, filter: CommentFilter) -> list[Comment]:
         self.get_many_filter = filter
-        self.get_many_by = by
         return []
 
-    async def get_by_id(self, id: CommentId, by: UserId | None = None) -> Comment | None:
+    async def get_by_id(self, id: CommentId) -> Comment | None:
         self.get_by_id_id = id
-        self.get_by_id_by = by
         return self.comment
 
     async def delete(self, id: CommentId) -> CommentId | None:
@@ -256,14 +255,59 @@ class FakeCommentRepository(CommentRepository):
         return id
 
 
-@pytest.fixture
-def user_repository() -> FakeUserRepository:
-    return FakeUserRepository()
+class FakeUnitOfWork(UnitOfWork):
+    @dataclass(frozen=True)
+    class Context:
+        users: FakeUserRepository
+        followers: FakeFollowerRepository
+        articles: FakeArticleRepository
+        tags: FakeTagRepository
+        favorites: FakeFavoriteRepository
+        comments: FakeCommentRepository
+
+    def __init__(
+        self,
+        user_repository: FakeUserRepository,
+        follower_repository: FakeFollowerRepository,
+        article_repository: FakeArticleRepository,
+        tag_repository: FakeTagRepository,
+        favorite_repository: FakeFavoriteRepository,
+        comment_repository: FakeCommentRepository,
+    ) -> None:
+        self.user_repository = user_repository
+        self.follower_repository = follower_repository
+        self.article_repository = article_repository
+        self.tag_repository = tag_repository
+        self.favorite_repository = favorite_repository
+        self.comment_repository = comment_repository
+
+    @asynccontextmanager
+    async def begin(self) -> t.AsyncIterator[Context]:
+        yield self.Context(
+            users=self.user_repository,
+            followers=self.follower_repository,
+            articles=self.article_repository,
+            tags=self.tag_repository,
+            favorites=self.favorite_repository,
+            comments=self.comment_repository,
+        )
 
 
 @pytest.fixture
-def profile_repository() -> FakeProfileRepository:
-    return FakeProfileRepository()
+async def existing_user() -> User:
+    return User(
+        id=UserId(1),
+        username=Username("test"),
+        email=Email("test@test.test"),
+        password=PasswordHash("test-password-hash"),
+        bio="test-bio",
+        image=URL("https://test.test/test.jpg"),
+    )
+
+
+@pytest.fixture
+async def existing_user_auth_token(existing_user: User, auth_token_generator: AuthTokenGenerator) -> AuthToken:
+    return await auth_token_generator.generate_token(existing_user)
 
 
 @pytest.fixture
@@ -274,18 +318,9 @@ def existing_article() -> Article:
         title="test-title",
         description="test-description",
         body="test-body",
-        tags=[],
         created_at=dt.datetime.utcnow(),
         updated_at=None,
-        is_favorite=False,
-        favorite_of_user_count=0,
-        author=Profile(
-            id=UserId(1),
-            username=Username("test-username"),
-            bio="",
-            image=None,
-            is_following=False,
-        ),
+        author_id=UserId(1),
     )
 
 
@@ -296,19 +331,33 @@ def existing_comment() -> Comment:
         created_at=dt.datetime.utcnow(),
         updated_at=None,
         body="test",
-        author=Profile(
-            id=UserId(1),
-            username=Username("test-username"),
-            bio="",
-            image=None,
-            is_following=False,
-        ),
+        author_id=UserId(1),
     )
+
+
+@pytest.fixture
+def user_repository(existing_user: User) -> FakeUserRepository:
+    return FakeUserRepository(existing_user)
+
+
+@pytest.fixture
+def follower_repository() -> FakeFollowerRepository:
+    return FakeFollowerRepository()
 
 
 @pytest.fixture
 def article_repository(existing_article: Article) -> FakeArticleRepository:
     return FakeArticleRepository(existing_article)
+
+
+@pytest.fixture
+def favorite_repository() -> FakeFavoriteRepository:
+    return FakeFavoriteRepository()
+
+
+@pytest.fixture
+def tag_repository() -> FakeTagRepository:
+    return FakeTagRepository()
 
 
 @pytest.fixture
@@ -327,16 +376,19 @@ def auth_token_generator() -> AuthTokenGenerator:
 
 
 @pytest.fixture
-async def existing_user(user_repository: UserRepository) -> User:
-    return await user_repository.create(
-        CreateUserInput(
-            username=Username("test"),
-            email=Email("test@test.test"),
-            password=PasswordHash("test"),
-        )
+def unit_of_work(
+    user_repository: FakeUserRepository,
+    follower_repository: FakeFollowerRepository,
+    article_repository: FakeArticleRepository,
+    favorite_repository: FakeFavoriteRepository,
+    tag_repository: FakeTagRepository,
+    comment_repository: FakeCommentRepository,
+) -> FakeUnitOfWork:
+    return FakeUnitOfWork(
+        user_repository,
+        follower_repository,
+        article_repository,
+        tag_repository,
+        favorite_repository,
+        comment_repository,
     )
-
-
-@pytest.fixture
-async def existing_user_auth_token(existing_user: User, auth_token_generator: AuthTokenGenerator) -> AuthToken:
-    return await auth_token_generator.generate_token(existing_user)

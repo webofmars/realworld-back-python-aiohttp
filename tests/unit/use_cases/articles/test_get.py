@@ -3,12 +3,12 @@ import pytest
 from conduit.core.entities.article import Article, ArticleSlug
 from conduit.core.entities.user import AuthToken, User
 from conduit.core.use_cases.articles.get import GetArticleInput, GetArticleUseCase
-from tests.unit.conftest import FakeArticleRepository
+from tests.unit.conftest import FakeArticleRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(article_repository: FakeArticleRepository) -> GetArticleUseCase:
-    return GetArticleUseCase(article_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> GetArticleUseCase:
+    return GetArticleUseCase(unit_of_work)
 
 
 async def test_get_article_success(
@@ -26,9 +26,9 @@ async def test_get_article_success(
     result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
-    assert result.article == existing_article
+    assert result.article is not None
+    assert result.article.v == existing_article
     assert article_repository.get_by_slug_slug == ArticleSlug("test-get-article-slug-1")
-    assert article_repository.get_by_slug_by == existing_user.id
 
 
 async def test_get_article_success_not_authenticated(
@@ -45,9 +45,9 @@ async def test_get_article_success_not_authenticated(
     result = await use_case.execute(input)
 
     # Assert
-    assert result.article == existing_article
+    assert result.article is not None
+    assert result.article.v == existing_article
     assert article_repository.get_by_slug_slug == ArticleSlug("test-get-article-slug-2")
-    assert article_repository.get_by_slug_by is None
 
 
 async def test_get_article_not_found(
@@ -70,4 +70,3 @@ async def test_get_article_not_found(
     # Assert
     assert result.article is None
     assert article_repository.get_by_slug_slug == ArticleSlug("test-get-article-slug-3")
-    assert article_repository.get_by_slug_by == existing_user.id

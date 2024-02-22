@@ -8,10 +8,13 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.article import Article, ArticleRepository, ArticleSlug, UpdateArticleInput
+from conduit.core.entities.article import ArticleId, ArticleSlug, ArticleWithExtra
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
+from conduit.core.use_cases.articles.common import get_author, get_tags_for_article
 from conduit.core.use_cases.auth import WithAuthenticationInput
+from conduit.core.use_cases.common import get_article, is_user_followed
 
 LOG = logging.getLogger(__name__)
 
@@ -26,28 +29,43 @@ class UnfavoriteArticleInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class UnfavoriteArticleResult:
-    article: Article | None
+    article: ArticleWithExtra | None
 
 
 class UnfavoriteArticleUseCase(UseCase[UnfavoriteArticleInput, UnfavoriteArticleResult]):
-    def __init__(self, article_repository: ArticleRepository) -> None:
-        self._article_repository = article_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: UnfavoriteArticleInput, /) -> UnfavoriteArticleResult:
-        """Remove an article from user's favorites.
+        """Removes an article from user's favorites.
 
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
         user_id = input.ensure_authenticated()
-        article = await self._article_repository.get_by_slug(input.slug)
+        article = await get_article(self._unit_of_work, input.slug)
         if article is None:
-            LOG.info("could not remove article from favorites, article not found", extra={"input": input})
             return UnfavoriteArticleResult(None)
-        unfavorite_article = await self._article_repository.update(
-            article.id,
-            UpdateArticleInput(is_favorite=False),
-            by=user_id,
+        author = await get_author(self._unit_of_work, article.author_id)
+        tags = await get_tags_for_article(self._unit_of_work, article.id)
+        followed = await is_user_followed(self._unit_of_work, author.id, by=user_id)
+        favorite_of_user_count = await self._remove_from_favorites(user_id, article.id)
+        return UnfavoriteArticleResult(
+            ArticleWithExtra(
+                v=article,
+                author=author,
+                tags=tags,
+                is_author_followed=followed,
+                is_article_favorite=False,
+                favorite_of_user_count=favorite_of_user_count,
+            )
         )
-        LOG.info("article has been removed from favorites", extra={"input": input})
-        return UnfavoriteArticleResult(unfavorite_article)
+
+    async def _remove_from_favorites(self, user_id: UserId, article_id: ArticleId) -> int:
+        async with self._unit_of_work.begin() as uow:
+            favorite_of_user_count = await uow.favorites.remove(user_id, article_id)
+        LOG.info(
+            "article has been removed from favorites",
+            extra={"user_id": user_id, "article_id": article_id, "favorite_of_user_count": favorite_of_user_count},
+        )
+        return favorite_of_user_count

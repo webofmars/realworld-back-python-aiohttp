@@ -8,11 +8,13 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.article import ArticleId, ArticleRepository, ArticleSlug
+from conduit.core.entities.article import ArticleId, ArticleSlug
 from conduit.core.entities.errors import PermissionDeniedError
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
+from conduit.core.use_cases.common import get_article
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +33,8 @@ class DeleteArticleResult:
 
 
 class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
-    def __init__(self, repository: ArticleRepository) -> None:
-        self._repository = repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: DeleteArticleInput, /) -> DeleteArticleResult:
         """Delete an existing article.
@@ -42,13 +44,20 @@ class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
             PermissionDeniedError: If user is not allowed to delete the article.
         """
         user_id = input.ensure_authenticated()
-        article = await self._repository.get_by_slug(input.slug)
+        article = await get_article(self._unit_of_work, input.slug)
         if article is None:
-            LOG.info("could not delete article, article not found", extra={"input": input})
             return DeleteArticleResult(None)
-        if article.author.id != user_id:
-            LOG.info("user is not allowed to delete the article", extra={"input": input})
+        if article.author_id != user_id:
+            LOG.info(
+                "user is not allowed to delete the article",
+                extra={"user_id": user_id, "author_id": article.author_id},
+            )
             raise PermissionDeniedError()
-        deleted_article_id = await self._repository.delete(article.id)
-        LOG.info("article has been deleted", extra={"input": input})
+        deleted_article_id = await self._delete_article(article.id)
         return DeleteArticleResult(deleted_article_id)
+
+    async def _delete_article(self, article_id: ArticleId) -> ArticleId | None:
+        async with self._unit_of_work.begin() as uow:
+            deleted_article_id = await uow.articles.delete(article_id)
+        LOG.info("article has been deleted", extra={"article_id": deleted_article_id})
+        return deleted_article_id

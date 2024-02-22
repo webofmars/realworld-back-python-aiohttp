@@ -5,15 +5,12 @@ from conduit.core.entities.comment import Comment
 from conduit.core.entities.errors import ArticleDoesNotExistError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User
 from conduit.core.use_cases.comments.add_to_article import AddCommentToArticleInput, AddCommentToArticleUseCase
-from tests.unit.conftest import FakeArticleRepository, FakeCommentRepository
+from tests.unit.conftest import FakeArticleRepository, FakeCommentRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(
-    article_repository: FakeArticleRepository,
-    comment_repository: FakeCommentRepository,
-) -> AddCommentToArticleUseCase:
-    return AddCommentToArticleUseCase(article_repository, comment_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> AddCommentToArticleUseCase:
+    return AddCommentToArticleUseCase(unit_of_work)
 
 
 async def test_add_comment_to_article_success(
@@ -37,7 +34,7 @@ async def test_add_comment_to_article_success(
     assert comment_repository.create_input is not None
     assert comment_repository.create_input.article_id == existing_article.id
     assert comment_repository.create_input.body == "test-add-comment-to-article"
-    assert comment_repository.create_by == existing_user.id
+    assert comment_repository.create_input.author_id == existing_user.id
 
 
 async def test_add_comment_to_article_not_authenticated(

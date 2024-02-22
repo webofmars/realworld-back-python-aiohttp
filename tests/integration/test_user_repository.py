@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from yarl import URL
@@ -7,20 +5,6 @@ from yarl import URL
 from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
 from conduit.core.entities.user import CreateUserInput, Email, PasswordHash, UpdateUserInput, User, UserId, Username
 from conduit.impl.user_repository import PostgresqlUserRepository
-
-
-@pytest.fixture
-async def user_repository(db_engine: AsyncEngine) -> PostgresqlUserRepository:
-    return PostgresqlUserRepository(db_engine)
-
-
-@pytest.fixture
-async def existing_users(user_repository: PostgresqlUserRepository) -> tuple[User, User]:
-    users = await asyncio.gather(
-        user_repository.create(CreateUserInput(Username("test-1"), Email("test-1@test.test"), PasswordHash("test-1"))),
-        user_repository.create(CreateUserInput(Username("test-2"), Email("test-2@test.test"), PasswordHash("test-2"))),
-    )
-    return users
 
 
 @pytest.mark.parametrize(
@@ -44,9 +28,11 @@ async def existing_users(user_repository: PostgresqlUserRepository) -> tuple[Use
         ),
     ],
 )
-async def test_create(user_repository: PostgresqlUserRepository, input: CreateUserInput) -> None:
+async def test_create(db_engine: AsyncEngine, input: CreateUserInput) -> None:
     # Act
-    user = await user_repository.create(input)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        user = await repo.create(input)
 
     # Assert
     assert isinstance(user.id, int)
@@ -58,7 +44,7 @@ async def test_create(user_repository: PostgresqlUserRepository, input: CreateUs
 
 
 async def test_create_username_already_exists(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Arrange
@@ -66,20 +52,24 @@ async def test_create_username_already_exists(
 
     # Act
     with pytest.raises(UsernameAlreadyExistsError):
-        await user_repository.create(
-            CreateUserInput(
-                username=user.username,
-                email=Email("foo@test.test"),
-                password=PasswordHash("test"),
+        async with db_engine.begin() as connection:
+            repo = PostgresqlUserRepository(connection)
+            await repo.create(
+                CreateUserInput(
+                    username=user.username,
+                    email=Email("foo@test.test"),
+                    password=PasswordHash("test"),
+                )
             )
-        )
 
     # Assert
-    assert await user_repository.get_by_email(Email("foo@test.test")) is None
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert await repo.get_by_email(Email("foo@test.test")) is None
 
 
 async def test_create_email_already_exists(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Arrange
@@ -87,25 +77,31 @@ async def test_create_email_already_exists(
 
     # Act
     with pytest.raises(EmailAlreadyExistsError):
-        await user_repository.create(
-            CreateUserInput(
-                username=Username("foobar-test"),
-                email=user.email,
-                password=PasswordHash("test"),
+        async with db_engine.begin() as connection:
+            repo = PostgresqlUserRepository(connection)
+            await repo.create(
+                CreateUserInput(
+                    username=Username("foobar-test"),
+                    email=user.email,
+                    password=PasswordHash("test"),
+                )
             )
-        )
 
     # Assert
-    assert await user_repository.get_by_email(user.email) == user
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert await repo.get_by_email(user.email) == user
 
 
-async def test_get_by_email(user_repository: PostgresqlUserRepository, existing_users: tuple[User, User]) -> None:
+async def test_get_by_email(db_engine: AsyncEngine, existing_users: tuple[User, User]) -> None:
     # Arrange
     expected_user_1, expected_user_2 = existing_users
 
     # Act
-    actual_user_1 = await user_repository.get_by_email(expected_user_1.email)
-    actual_user_2 = await user_repository.get_by_email(expected_user_2.email)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        actual_user_1 = await repo.get_by_email(expected_user_1.email)
+        actual_user_2 = await repo.get_by_email(expected_user_2.email)
 
     # Assert
     assert actual_user_1 == expected_user_1
@@ -114,24 +110,58 @@ async def test_get_by_email(user_repository: PostgresqlUserRepository, existing_
 
 @pytest.mark.parametrize("email", ["test-3@test.test", "test-4@test.test"])
 async def test_get_by_email_not_found(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
     email: Email,
 ) -> None:
     # Act
-    user = await user_repository.get_by_email(email)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        user = await repo.get_by_email(email)
 
     # Assert
     assert user is None
 
 
-async def test_get_by_id(user_repository: PostgresqlUserRepository, existing_users: tuple[User, User]) -> None:
+async def test_get_username(db_engine: AsyncEngine, existing_users: tuple[User, User]) -> None:
     # Arrange
     expected_user_1, expected_user_2 = existing_users
 
     # Act
-    actual_user_1 = await user_repository.get_by_id(expected_user_1.id)
-    actual_user_2 = await user_repository.get_by_id(expected_user_2.id)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        actual_user_1 = await repo.get_by_username(expected_user_1.username)
+        actual_user_2 = await repo.get_by_username(expected_user_2.username)
+
+    # Assert
+    assert actual_user_1 == expected_user_1
+    assert actual_user_2 == expected_user_2
+
+
+@pytest.mark.parametrize("username", ["foo", "bar"])
+async def test_get_by_username_not_found(
+    db_engine: AsyncEngine,
+    existing_users: tuple[User, User],
+    username: Username,
+) -> None:
+    # Act
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        user = await repo.get_by_username(username)
+
+    # Assert
+    assert user is None
+
+
+async def test_get_by_id(db_engine: AsyncEngine, existing_users: tuple[User, User]) -> None:
+    # Arrange
+    expected_user_1, expected_user_2 = existing_users
+
+    # Act
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        actual_user_1 = await repo.get_by_id(expected_user_1.id)
+        actual_user_2 = await repo.get_by_id(expected_user_2.id)
 
     # Assert
     assert actual_user_1 == expected_user_1
@@ -140,15 +170,32 @@ async def test_get_by_id(user_repository: PostgresqlUserRepository, existing_use
 
 @pytest.mark.parametrize("id", [1234, 4321])
 async def test_get_by_id_not_found(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
     id: UserId,
 ) -> None:
     # Act
-    user = await user_repository.get_by_id(id)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        user = await repo.get_by_id(id)
 
     # Assert
     assert user is None
+
+
+async def test_get_by_ids(db_engine: AsyncEngine, existing_users: tuple[User, User]) -> None:
+    # Arrange
+    expected_user_1, expected_user_2 = existing_users
+
+    # Act
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        users = await repo.get_by_ids([expected_user_1.id, UserId(123456), expected_user_2.id])
+
+    # Assert
+    assert len(users) == 2
+    assert users[expected_user_1.id] == expected_user_1
+    assert users[expected_user_2.id] == expected_user_2
 
 
 @pytest.mark.parametrize(
@@ -212,7 +259,7 @@ async def test_get_by_id_not_found(
     ],
 )
 async def test_update(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
     input: UpdateUserInput,
     expected_attrs: list[tuple[str, object]],
@@ -221,17 +268,21 @@ async def test_update(
     user_to_update, _ = existing_users
 
     # Act
-    updated_user = await user_repository.update(user_to_update.id, input)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        updated_user = await repo.update(user_to_update.id, input)
 
     # Assert
     assert updated_user is not None
-    assert updated_user == await user_repository.get_by_id(user_to_update.id)
     for attr, expected_value in expected_attrs:
         assert getattr(updated_user, attr) == expected_value, attr
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert await repo.get_by_id(user_to_update.id) == updated_user
 
 
 async def test_update_other_user_is_not_updated(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Arrange
@@ -245,16 +296,20 @@ async def test_update_other_user_is_not_updated(
         bio="test",
         image=URL("https://test.test/test.jpg"),
     )
-    updated_user = await user_repository.update(user_to_update.id, input)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        updated_user = await repo.update(user_to_update.id, input)
 
     # Assert
     assert updated_user is not None
-    assert updated_user == await user_repository.get_by_id(user_to_update.id)
-    assert other_user == await user_repository.get_by_id(other_user.id)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert updated_user == await repo.get_by_id(user_to_update.id)
+        assert other_user == await repo.get_by_id(other_user.id)
 
 
 async def test_update_user_not_found(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Act
@@ -265,14 +320,16 @@ async def test_update_user_not_found(
         bio="test",
         image=URL("https://test.test/test.jpg"),
     )
-    updated_user = await user_repository.update(UserId(123456), input)
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        updated_user = await repo.update(UserId(123456), input)
 
     # Assert
     assert updated_user is None
 
 
 async def test_update_username_already_exists(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Arrange
@@ -280,20 +337,24 @@ async def test_update_username_already_exists(
 
     # Act
     with pytest.raises(UsernameAlreadyExistsError):
-        await user_repository.update(
-            user_to_update.id,
-            UpdateUserInput(
-                username=other_user.username,
-                bio="test",
-            ),
-        )
+        async with db_engine.begin() as connection:
+            repo = PostgresqlUserRepository(connection)
+            await repo.update(
+                user_to_update.id,
+                UpdateUserInput(
+                    username=other_user.username,
+                    bio="test",
+                ),
+            )
 
     # Assert
-    assert await user_repository.get_by_id(user_to_update.id) == user_to_update
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert await repo.get_by_id(user_to_update.id) == user_to_update
 
 
 async def test_update_email_already_exists(
-    user_repository: PostgresqlUserRepository,
+    db_engine: AsyncEngine,
     existing_users: tuple[User, User],
 ) -> None:
     # Arrange
@@ -301,13 +362,17 @@ async def test_update_email_already_exists(
 
     # Act
     with pytest.raises(EmailAlreadyExistsError):
-        await user_repository.update(
-            user_to_update.id,
-            UpdateUserInput(
-                email=other_user.email,
-                password=PasswordHash("test"),
-            ),
-        )
+        async with db_engine.begin() as connection:
+            repo = PostgresqlUserRepository(connection)
+            await repo.update(
+                user_to_update.id,
+                UpdateUserInput(
+                    email=other_user.email,
+                    password=PasswordHash("test"),
+                ),
+            )
 
     # Assert
-    assert await user_repository.get_by_id(user_to_update.id) == user_to_update
+    async with db_engine.begin() as connection:
+        repo = PostgresqlUserRepository(connection)
+        assert await repo.get_by_id(user_to_update.id) == user_to_update

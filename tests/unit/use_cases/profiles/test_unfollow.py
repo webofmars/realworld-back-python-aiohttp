@@ -3,23 +3,23 @@ import pytest
 from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User, Username
 from conduit.core.use_cases.profiles.unfollow import UnfollowInput, UnfollowUseCase
-from tests.unit.conftest import FakeProfileRepository
+from tests.unit.conftest import FakeFollowerRepository, FakeUnitOfWork, FakeUserRepository
 
 
 @pytest.fixture
-def use_case(profile_repository: FakeProfileRepository) -> UnfollowUseCase:
-    return UnfollowUseCase(profile_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> UnfollowUseCase:
+    return UnfollowUseCase(unit_of_work)
 
 
 async def test_unfollow_success(
     use_case: UnfollowUseCase,
-    profile_repository: FakeProfileRepository,
+    user_repository: FakeUserRepository,
+    follower_repository: FakeFollowerRepository,
     existing_user: User,
     follower: User,
 ) -> None:
     # Arrange
-    profile_repository.users = [existing_user]
-    profile_repository.followers[existing_user.id] = {follower.id}
+    follower_repository.followers[existing_user.id] = {follower.id}
 
     # Act
     input = UnfollowInput(
@@ -30,20 +30,21 @@ async def test_unfollow_success(
     result = await use_case.execute(input.with_user_id(follower.id))
 
     # Assert
-    assert result.profile is not None
-    assert result.profile.username == existing_user.username
-    assert not result.profile.is_following
+    assert result.user is not None
+    assert result.user.username == existing_user.username
+    assert not await follower_repository.is_followed(existing_user.id, by=follower.id)
 
 
 async def test_unfollow_user_not_found(
     use_case: UnfollowUseCase,
-    profile_repository: FakeProfileRepository,
+    user_repository: FakeUserRepository,
+    follower_repository: FakeFollowerRepository,
     existing_user: User,
     follower: User,
 ) -> None:
     # Arrange
-    profile_repository.users = [existing_user]
-    profile_repository.followers[existing_user.id] = {follower.id}
+    user_repository.user = None
+    follower_repository.followers[existing_user.id] = {follower.id}
 
     # Act
     input = UnfollowInput(
@@ -54,17 +55,15 @@ async def test_unfollow_user_not_found(
     result = await use_case.execute(input.with_user_id(follower.id))
 
     # Assert
-    assert result.profile is None
+    assert result.user is None
+    assert user_repository.get_by_username_username == Username("not-existing-username")
 
 
-async def test_follow_not_authenticated(
+async def test_unfollow_not_authenticated(
     use_case: UnfollowUseCase,
-    profile_repository: FakeProfileRepository,
+    user_repository: FakeUserRepository,
     existing_user: User,
 ) -> None:
-    # Arrange
-    profile_repository.users = [existing_user]
-
     # Act
     with pytest.raises(UserIsNotAuthenticatedError):
         await use_case.execute(
@@ -74,3 +73,6 @@ async def test_follow_not_authenticated(
                 username=existing_user.username,
             )
         )
+
+    # Assert
+    assert user_repository.get_by_username_username is None

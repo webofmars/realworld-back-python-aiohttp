@@ -1,15 +1,14 @@
 import pytest
 
-from conduit.core.entities.article import ArticleFilter
-from conduit.core.entities.tag import Tag
+from conduit.core.entities.article import ArticleFilter, Tag
 from conduit.core.entities.user import AuthToken, User, Username
 from conduit.core.use_cases.articles.list import ListArticlesInput, ListArticlesUseCase
-from tests.unit.conftest import FakeArticleRepository
+from tests.unit.conftest import FakeArticleRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(article_repository: FakeArticleRepository) -> ListArticlesUseCase:
-    return ListArticlesUseCase(article_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> ListArticlesUseCase:
+    return ListArticlesUseCase(unit_of_work)
 
 
 @pytest.mark.parametrize(
@@ -70,7 +69,6 @@ async def test_list_articles_success(
     assert article_repository.get_many_filter == expected_filter
     assert article_repository.get_many_limit == expected_limit
     assert article_repository.get_many_offset == expected_offset
-    assert article_repository.get_many_by == existing_user.id
     assert article_repository.count_filter == expected_filter
 
 
@@ -86,4 +84,3 @@ async def test_list_article_success_not_authenticated(
     assert article_repository.get_many_filter is not None
     assert article_repository.get_many_limit == 5
     assert article_repository.get_many_offset == 1
-    assert article_repository.get_many_by is None

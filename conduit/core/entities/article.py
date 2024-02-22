@@ -1,10 +1,14 @@
 __all__ = [
     "Article",
+    "ArticleFilter",
     "ArticleId",
     "ArticleRepository",
     "ArticleSlug",
-    "ArticleFilter",
+    "ArticleWithExtra",
     "CreateArticleInput",
+    "FavoriteRepository",
+    "Tag",
+    "TagRepository",
     "UpdateArticleInput",
 ]
 
@@ -14,9 +18,7 @@ import typing as t
 from dataclasses import dataclass
 
 from conduit.core.entities.common import NotSet
-from conduit.core.entities.profile import Profile
-from conduit.core.entities.tag import Tag
-from conduit.core.entities.user import UserId, Username
+from conduit.core.entities.user import User, UserId, Username
 
 ArticleId = t.NewType("ArticleId", int)
 ArticleSlug = t.NewType("ArticleSlug", str)
@@ -25,24 +27,39 @@ ArticleSlug = t.NewType("ArticleSlug", str)
 @dataclass(frozen=True)
 class Article:
     id: ArticleId
+    author_id: UserId
     slug: ArticleSlug
     title: str
     description: str
     body: str
-    tags: list[Tag]
     created_at: dt.datetime
     updated_at: dt.datetime | None
-    is_favorite: bool
-    favorite_of_user_count: int
-    author: Profile
+
+
+@dataclass(frozen=True)
+class Tag:
+    v: str
+
+
+@dataclass(frozen=True)
+class ArticleWithExtra:
+    v: Article
+    author: User
+    tags: t.Sequence[Tag]
+    is_author_followed: bool = False
+    is_article_favorite: bool = False
+    favorite_of_user_count: int = 0
+
+    def __post_init__(self) -> None:
+        assert self.v.author_id == self.author.id
 
 
 @dataclass(frozen=True)
 class CreateArticleInput:
+    author_id: UserId
     title: str
     description: str
     body: str
-    tags: list[Tag]
 
 
 @dataclass(frozen=True)
@@ -58,12 +75,11 @@ class UpdateArticleInput:
     title: str | NotSet = NotSet.NOT_SET
     description: str | NotSet = NotSet.NOT_SET
     body: str | NotSet = NotSet.NOT_SET
-    is_favorite: bool | NotSet = NotSet.NOT_SET
 
 
 class ArticleRepository(t.Protocol):
     @abc.abstractmethod
-    async def create(self, input: CreateArticleInput, by: UserId) -> Article:
+    async def create(self, input: CreateArticleInput) -> Article:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -73,8 +89,7 @@ class ArticleRepository(t.Protocol):
         *,
         limit: int,
         offset: int,
-        by: UserId | None = None,
-    ) -> t.Iterable[Article]:
+    ) -> list[Article]:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -82,13 +97,68 @@ class ArticleRepository(t.Protocol):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def get_by_slug(self, slug: ArticleSlug, by: UserId | None = None) -> Article | None:
+    async def get_by_slug(self, slug: ArticleSlug) -> Article | None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def update(self, id: ArticleId, input: UpdateArticleInput, by: UserId) -> Article | None:
+    async def update(self, id: ArticleId, input: UpdateArticleInput) -> Article | None:
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def delete(self, id: ArticleId) -> ArticleId | None:
+        raise NotImplementedError()
+
+
+class FavoriteRepository(t.Protocol):
+    @abc.abstractmethod
+    async def add(self, user_id: UserId, article_id: ArticleId) -> int:
+        """Adds `article_id` to the favorites of `user_id`.
+
+        Returns:
+            The total number of users who have added `article_id` to their favorites.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def remove(self, user_id: UserId, article_id: ArticleId) -> int:
+        """Removes `article_id` from the favorites of `user_id`.
+
+        Returns:
+            The total number of users who have added `article_id` to their favorites.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def is_favorite(self, article_id: ArticleId, of: UserId) -> bool:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def are_favorite(self, article_ids: t.Collection[ArticleId], of: UserId) -> dict[ArticleId, bool]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def count(self, article_id: ArticleId) -> int:
+        """Counts users who have added `article_id` to their favorites."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def count_many(self, article_ids: t.Collection[ArticleId]) -> dict[ArticleId, int]:
+        raise NotImplementedError()
+
+
+class TagRepository(t.Protocol):
+    @abc.abstractmethod
+    async def create(self, article_id: ArticleId, tags: t.Collection[Tag]) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def get_all(self) -> list[Tag]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def get_for_article(self, article_id: ArticleId) -> list[Tag]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def get_for_articles(self, article_ids: t.Collection[ArticleId]) -> dict[ArticleId, list[Tag]]:
         raise NotImplementedError()

@@ -8,8 +8,8 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.profile import Profile, ProfileRepository, UpdateProfileInput
-from conduit.core.entities.user import UserId, Username
+from conduit.core.entities.unit_of_work import UnitOfWork
+from conduit.core.entities.user import User, UserId, Username
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -26,12 +26,12 @@ class UnfollowInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class UnfollowResult:
-    profile: Profile | None
+    user: User | None
 
 
 class UnfollowUseCase(UseCase[UnfollowInput, UnfollowResult]):
-    def __init__(self, profile_repository: ProfileRepository) -> None:
-        self._profile_repository = profile_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: UnfollowInput, /) -> UnfollowResult:
         """Unfollow an user.
@@ -40,14 +40,12 @@ class UnfollowUseCase(UseCase[UnfollowInput, UnfollowResult]):
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
         user_id = input.ensure_authenticated()
-        profile = await self._profile_repository.get_by_username(input.username, by=user_id)
-        if profile is None:
-            LOG.info("could not unfollow profile, profile not found", extra={"input": input})
+        async with self._unit_of_work.begin() as uow:
+            unfollowed_user = await uow.users.get_by_username(input.username)
+        if unfollowed_user is None:
+            LOG.info("could not unfollow user, user not found", extra={"input": input})
             return UnfollowResult(None)
-        unfollowed_profile = await self._profile_repository.update(
-            profile.id,
-            UpdateProfileInput(is_following=False),
-            by=user_id,
-        )
-        LOG.info("profile is unfollowed", extra={"input": input, "profile": unfollowed_profile})
-        return UnfollowResult(unfollowed_profile)
+        async with self._unit_of_work.begin() as uow:
+            await uow.followers.unfollow(follower_id=user_id, followed_id=unfollowed_user.id)
+        LOG.info("user is unfollowed", extra={"input": input, "unfollowed_user": unfollowed_user})
+        return UnfollowResult(unfollowed_user)

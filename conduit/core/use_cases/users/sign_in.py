@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 
 from conduit.core.entities.errors import InvalidCredentialsError
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import (
     AuthToken,
     AuthTokenGenerator,
@@ -15,7 +16,6 @@ from conduit.core.entities.user import (
     PasswordHasher,
     RawPassword,
     User,
-    UserRepository,
 )
 from conduit.core.use_cases import UseCase
 
@@ -37,11 +37,11 @@ class SignInResult:
 class SignInUseCase(UseCase[SignInInput, SignInResult]):
     def __init__(
         self,
-        user_repository: UserRepository,
+        unit_of_work: UnitOfWork,
         password_hasher: PasswordHasher,
         auth_token_generator: AuthTokenGenerator,
     ) -> None:
-        self._user_repository = user_repository
+        self._unit_of_work = unit_of_work
         self._password_hasher = password_hasher
         self._auth_token_generator = auth_token_generator
 
@@ -51,7 +51,8 @@ class SignInUseCase(UseCase[SignInInput, SignInResult]):
         Raises:
             InvalidCredentialsError: If either `input.email` or `input.password` is not valid.
         """
-        user = await self._user_repository.get_by_email(input.email)
+        async with self._unit_of_work.begin() as uow:
+            user = await uow.users.get_by_email(input.email)
         if user is None:
             LOG.info("user not found", extra={"email": input.email})
             raise InvalidCredentialsError()

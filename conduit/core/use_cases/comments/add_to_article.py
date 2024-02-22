@@ -8,12 +8,14 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.article import ArticleRepository, ArticleSlug
-from conduit.core.entities.comment import Comment, CommentRepository, CreateCommentInput
-from conduit.core.entities.errors import ArticleDoesNotExistError
-from conduit.core.entities.user import UserId
+from conduit.core.entities.article import ArticleSlug
+from conduit.core.entities.comment import Comment, CreateCommentInput
+from conduit.core.entities.errors import ArticleDoesNotExistError, UserIsNotAuthenticatedError
+from conduit.core.entities.unit_of_work import UnitOfWork
+from conduit.core.entities.user import User, UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
+from conduit.core.use_cases.common import get_article
 
 LOG = logging.getLogger(__name__)
 
@@ -30,12 +32,12 @@ class AddCommentToArticleInput(WithAuthenticationInput):
 @dataclass(frozen=True)
 class AddCommentToArticleResult:
     comment: Comment
+    author: User
 
 
 class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToArticleResult]):
-    def __init__(self, article_repository: ArticleRepository, comment_repository: CommentRepository) -> None:
-        self._article_repository = article_repository
-        self._comment_repository = comment_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: AddCommentToArticleInput, /) -> AddCommentToArticleResult:
         """Add a new comment to an article.
@@ -45,16 +47,22 @@ class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToA
             ArticleDoesNotExistError: If article does not exist.
         """
         user_id = input.ensure_authenticated()
-        article = await self._article_repository.get_by_slug(input.article_slug, user_id)
+        author = await self._get_author(user_id)
+        article = await get_article(self._unit_of_work, input.article_slug)
         if article is None:
-            LOG.info(
-                "could not add a new comment, the article is not found",
-                extra={"slug": input.article_slug, "user_id": user_id},
-            )
             raise ArticleDoesNotExistError()
-        comment = await self._comment_repository.create(CreateCommentInput(article.id, input.body), by=user_id)
+        async with self._unit_of_work.begin() as uow:
+            comment = await uow.comments.create(CreateCommentInput(user_id, article.id, input.body))
         LOG.info(
             "comment has been created",
             extra={"comment_id": comment.id, "article_id": article.id, "user_id": user_id},
         )
-        return AddCommentToArticleResult(comment)
+        return AddCommentToArticleResult(comment, author)
+
+    async def _get_author(self, user_id: UserId) -> User:
+        async with self._unit_of_work.begin() as uow:
+            author = await uow.users.get_by_id(user_id)
+        if author is None:
+            LOG.info("could not find user by id", extra={"user_id": user_id})
+            raise UserIsNotAuthenticatedError()
+        return author

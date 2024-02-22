@@ -2,6 +2,7 @@ __all__ = [
     "AuthToken",
     "AuthTokenGenerator",
     "CreateUserInput",
+    "FollowerRepository",
     "Email",
     "PasswordHash",
     "PasswordHasher",
@@ -69,7 +70,33 @@ class UserRepository(t.Protocol):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    async def get_by_ids(self, ids: t.Collection[UserId]) -> dict[UserId, User]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def get_by_username(self, username: Username) -> User | None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     async def update(self, id: UserId, input: UpdateUserInput) -> User | None:
+        raise NotImplementedError()
+
+
+class FollowerRepository(t.Protocol):
+    @abc.abstractmethod
+    async def follow(self, *, follower_id: UserId, followed_id: UserId) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def unfollow(self, *, follower_id: UserId, followed_id: UserId) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def is_followed(self, id: UserId, *, by: UserId) -> bool:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def are_followed(self, ids: t.Collection[UserId], by: UserId) -> dict[UserId, bool]:
         raise NotImplementedError()
 
 

@@ -1,61 +1,43 @@
+from dataclasses import replace
+
 import pytest
 
 from conduit.core.entities.errors import InvalidCredentialsError
-from conduit.core.entities.user import Email, RawPassword, Username
+from conduit.core.entities.user import Email, RawPassword, User
 from conduit.core.use_cases.users.sign_in import SignInInput, SignInUseCase
-from conduit.core.use_cases.users.sign_up import SignUpInput, SignUpUseCase
-from tests.unit.conftest import FakeAuthTokenGenerator, FakePasswordHasher, FakeUserRepository
+from tests.unit.conftest import FakeAuthTokenGenerator, FakePasswordHasher, FakeUnitOfWork, FakeUserRepository
 
 
 @pytest.fixture
 def use_case(
-    user_repository: FakeUserRepository,
+    unit_of_work: FakeUnitOfWork,
     password_hasher: FakePasswordHasher,
     auth_token_generator: FakeAuthTokenGenerator,
 ) -> SignInUseCase:
-    return SignInUseCase(user_repository, password_hasher, auth_token_generator)
-
-
-@pytest.fixture
-def sign_up_use_case(
-    user_repository: FakeUserRepository,
-    password_hasher: FakePasswordHasher,
-    auth_token_generator: FakeAuthTokenGenerator,
-) -> SignUpUseCase:
-    return SignUpUseCase(user_repository, password_hasher, auth_token_generator)
+    return SignInUseCase(unit_of_work, password_hasher, auth_token_generator)
 
 
 @pytest.mark.parametrize(
-    ["existing_users", "input"],
+    "input",
     [
-        pytest.param(
-            [
-                SignUpInput(Username("test-1"), Email("test-1@test.test"), RawPassword("test-password-1")),
-            ],
-            SignInInput(Email("test-1@test.test"), RawPassword("test-password-1")),
-            id="test-1",
-        ),
-        pytest.param(
-            [
-                SignUpInput(Username("test-1"), Email("test-1@test.test"), RawPassword("test-password-1")),
-                SignUpInput(Username("test-2"), Email("test-2@test.test"), RawPassword("test-password-2")),
-                SignUpInput(Username("test-3"), Email("test-3@test.test"), RawPassword("test-password-3")),
-            ],
-            SignInInput(Email("test-2@test.test"), RawPassword("test-password-2")),
-            id="test-2",
-        ),
+        SignInInput(Email("test-1@test.test"), RawPassword("test-password-1")),
+        SignInInput(Email("test-2@test.test"), RawPassword("test-password-2")),
     ],
 )
 async def test_sign_in_success(
     use_case: SignInUseCase,
-    sign_up_use_case: SignUpUseCase,
+    user_repository: FakeUserRepository,
     auth_token_generator: FakeAuthTokenGenerator,
-    existing_users: list[SignUpInput],
+    password_hasher: FakePasswordHasher,
+    existing_user: User,
     input: SignInInput,
 ) -> None:
     # Arrange
-    for sign_up_input in existing_users:
-        await sign_up_use_case.execute(sign_up_input)
+    user_repository.user = replace(
+        existing_user,
+        email=input.email,
+        password=await password_hasher.hash_password(input.password),
+    )
 
     # Act
     result = await use_case.execute(input)
@@ -66,48 +48,39 @@ async def test_sign_in_success(
 
 
 @pytest.mark.parametrize(
-    ["existing_users", "input"],
+    "input",
     [
-        pytest.param(
-            [],
-            SignInInput(Email("test-1@test.test"), RawPassword("test-password-1")),
-            id="test-1",
-        ),
-        pytest.param(
-            [
-                SignUpInput(Username("test-2"), Email("test-2@test.test"), RawPassword("test-password-2")),
-            ],
-            SignInInput(Email("test-2@test.test"), RawPassword("invalid-password")),
-            id="test-2",
-        ),
-        pytest.param(
-            [
-                SignUpInput(Username("test-3"), Email("test-3@test.test"), RawPassword("test-password-3")),
-            ],
-            SignInInput(Email("invalid-email@test.test"), RawPassword("test-password-3")),
-            id="test-3",
-        ),
-        pytest.param(
-            [
-                SignUpInput(Username("test-4"), Email("test-4@test.test"), RawPassword("test-password-4")),
-                SignUpInput(Username("test-5"), Email("test-5@test.test"), RawPassword("test-password-5")),
-                SignUpInput(Username("test-6"), Email("test-6@test.test"), RawPassword("test-password-6")),
-            ],
-            SignInInput(Email("test-4@test.test"), RawPassword("test-password-6")),
-            id="test-4",
-        ),
+        SignInInput(Email("test-1@test.test"), RawPassword("test-password-1")),
+        SignInInput(Email("test-2@test.test"), RawPassword("test-password-2")),
     ],
 )
 async def test_sign_in_invalid_credentials(
     use_case: SignInUseCase,
-    sign_up_use_case: SignUpUseCase,
     auth_token_generator: FakeAuthTokenGenerator,
-    existing_users: list[SignUpInput],
+    existing_user: User,
+    input: SignInInput,
+) -> None:
+    # Act
+    with pytest.raises(InvalidCredentialsError):
+        await use_case.execute(input)
+
+
+@pytest.mark.parametrize(
+    "input",
+    [
+        SignInInput(Email("test-1@test.test"), RawPassword("test-password-1")),
+        SignInInput(Email("test-2@test.test"), RawPassword("test-password-2")),
+    ],
+)
+async def test_sign_in_user_not_found(
+    use_case: SignInUseCase,
+    user_repository: FakeUserRepository,
+    auth_token_generator: FakeAuthTokenGenerator,
+    existing_user: User,
     input: SignInInput,
 ) -> None:
     # Arrange
-    for sign_up_input in existing_users:
-        await sign_up_use_case.execute(sign_up_input)
+    user_repository.user = None
 
     # Act
     with pytest.raises(InvalidCredentialsError):

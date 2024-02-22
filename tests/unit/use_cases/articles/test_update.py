@@ -3,16 +3,15 @@ from dataclasses import replace
 import pytest
 
 from conduit.core.entities.article import Article, ArticleSlug
-from conduit.core.entities.common import NotSet
 from conduit.core.entities.errors import PermissionDeniedError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User, UserId
 from conduit.core.use_cases.articles.update import UpdateArticleInput, UpdateArticleUseCase
-from tests.unit.conftest import FakeArticleRepository
+from tests.unit.conftest import FakeArticleRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(article_repository: FakeArticleRepository) -> UpdateArticleUseCase:
-    return UpdateArticleUseCase(article_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> UpdateArticleUseCase:
+    return UpdateArticleUseCase(unit_of_work)
 
 
 @pytest.mark.parametrize(
@@ -59,14 +58,14 @@ async def test_update_article_success(
     result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
-    assert result.article == existing_article
+    assert result.article is not None
+    assert result.article.v == existing_article
     assert article_repository.get_by_slug_slug == input.slug
     assert article_repository.update_id == existing_article.id
     assert article_repository.update_input is not None
     assert article_repository.update_input.title == input.title
     assert article_repository.update_input.description == input.description
     assert article_repository.update_input.body == input.body
-    assert article_repository.update_input.is_favorite is NotSet.NOT_SET
 
 
 async def test_update_article_not_authenticated(
@@ -116,7 +115,7 @@ async def test_update_article_permission_denied(
     existing_article: Article,
 ) -> None:
     # Arrange
-    article_repository.article = replace(existing_article, author=replace(existing_article.author, id=UserId(123456)))
+    article_repository.article = replace(existing_article, author_id=UserId(123456))
 
     # Act
     with pytest.raises(PermissionDeniedError):

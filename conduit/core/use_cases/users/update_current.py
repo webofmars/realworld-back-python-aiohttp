@@ -10,6 +10,7 @@ from dataclasses import dataclass, replace
 from yarl import URL
 
 from conduit.core.entities.common import NotSet
+from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import (
     AuthToken,
     Email,
@@ -20,7 +21,6 @@ from conduit.core.entities.user import (
     User,
     UserId,
     Username,
-    UserRepository,
 )
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
@@ -58,10 +58,10 @@ class UpdateCurrentUserResult:
 class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUserResult]):
     def __init__(
         self,
-        user_repository: UserRepository,
+        unit_of_work: UnitOfWork,
         password_hasher: PasswordHasher,
     ) -> None:
-        self._user_repository = user_repository
+        self._unit_of_work = unit_of_work
         self._password_hasher = password_hasher
 
     async def execute(self, input: UpdateCurrentUserInput, /) -> UpdateCurrentUserResult:
@@ -76,10 +76,11 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
         password_hash: PasswordHash | NotSet = NotSet.NOT_SET
         if input.password is not NotSet.NOT_SET:
             password_hash = await self._password_hasher.hash_password(input.password)
-        updated_user = await self._user_repository.update(
-            id=user_id,
-            input=input.convert(password_hash),
-        )
+        async with self._unit_of_work.begin() as uow:
+            updated_user = await uow.users.update(
+                id=user_id,
+                input=input.convert(password_hash),
+            )
         if updated_user is None:
             LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
         return UpdateCurrentUserResult(updated_user, input.token)

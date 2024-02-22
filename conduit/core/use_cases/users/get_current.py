@@ -7,7 +7,8 @@ __all__ = [
 import logging
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.user import AuthToken, User, UserId, UserRepository
+from conduit.core.entities.unit_of_work import UnitOfWork
+from conduit.core.entities.user import AuthToken, User, UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -27,8 +28,8 @@ class GetCurrentUserResult:
 
 
 class GetCurrentUserUseCase(UseCase[GetCurrentUserInput, GetCurrentUserResult]):
-    def __init__(self, user_repository: UserRepository) -> None:
-        self._user_repository = user_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: GetCurrentUserInput, /) -> GetCurrentUserResult:
         """Get current user.
@@ -37,7 +38,8 @@ class GetCurrentUserUseCase(UseCase[GetCurrentUserInput, GetCurrentUserResult]):
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
         user_id = input.ensure_authenticated()
-        user = await self._user_repository.get_by_id(user_id)
+        async with self._unit_of_work.begin() as uow:
+            user = await uow.users.get_by_id(user_id)
         if user is None:
             LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
         return GetCurrentUserResult(user, input.token)

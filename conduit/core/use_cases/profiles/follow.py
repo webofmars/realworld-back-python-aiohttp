@@ -8,8 +8,8 @@ import logging
 import typing as t
 from dataclasses import dataclass, replace
 
-from conduit.core.entities.profile import Profile, ProfileRepository, UpdateProfileInput
-from conduit.core.entities.user import UserId, Username
+from conduit.core.entities.unit_of_work import UnitOfWork
+from conduit.core.entities.user import User, UserId, Username
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
@@ -26,12 +26,12 @@ class FollowInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class FollowResult:
-    profile: Profile | None
+    user: User | None
 
 
 class FollowUseCase(UseCase[FollowInput, FollowResult]):
-    def __init__(self, profile_repository: ProfileRepository) -> None:
-        self._profile_repository = profile_repository
+    def __init__(self, unit_of_work: UnitOfWork) -> None:
+        self._unit_of_work = unit_of_work
 
     async def execute(self, input: FollowInput, /) -> FollowResult:
         """Follow an user.
@@ -40,14 +40,12 @@ class FollowUseCase(UseCase[FollowInput, FollowResult]):
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
         user_id = input.ensure_authenticated()
-        profile = await self._profile_repository.get_by_username(input.username, by=user_id)
-        if profile is None:
-            LOG.info("could not follow profile, profile not found", extra={"input": input})
+        async with self._unit_of_work.begin() as uow:
+            followed_user = await uow.users.get_by_username(input.username)
+        if followed_user is None:
+            LOG.info("could not follow user, user not found", extra={"input": input})
             return FollowResult(None)
-        followed_profile = await self._profile_repository.update(
-            profile.id,
-            UpdateProfileInput(is_following=True),
-            by=user_id,
-        )
-        LOG.info("profile is followed", extra={"input": input, "profile": followed_profile})
-        return FollowResult(followed_profile)
+        async with self._unit_of_work.begin() as uow:
+            await uow.followers.follow(follower_id=user_id, followed_id=followed_user.id)
+        LOG.info("user is followed", extra={"input": input, "followed_user": followed_user})
+        return FollowResult(followed_user)

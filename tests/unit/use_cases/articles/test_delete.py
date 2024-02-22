@@ -6,12 +6,12 @@ from conduit.core.entities.article import Article, ArticleSlug
 from conduit.core.entities.errors import PermissionDeniedError, UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, User, UserId
 from conduit.core.use_cases.articles.delete import DeleteArticleInput, DeleteArticleUseCase
-from tests.unit.conftest import FakeArticleRepository
+from tests.unit.conftest import FakeArticleRepository, FakeUnitOfWork
 
 
 @pytest.fixture
-def use_case(article_repository: FakeArticleRepository) -> DeleteArticleUseCase:
-    return DeleteArticleUseCase(article_repository)
+def use_case(unit_of_work: FakeUnitOfWork) -> DeleteArticleUseCase:
+    return DeleteArticleUseCase(unit_of_work)
 
 
 async def test_delete_article_success(
@@ -81,7 +81,7 @@ async def test_delete_article_permission_denied(
     existing_article: Article,
 ) -> None:
     # Arrange
-    article_repository.article = replace(existing_article, author=replace(existing_article.author, id=UserId(123456)))
+    article_repository.article = replace(existing_article, author_id=UserId(123456))
 
     # Act
     with pytest.raises(PermissionDeniedError):

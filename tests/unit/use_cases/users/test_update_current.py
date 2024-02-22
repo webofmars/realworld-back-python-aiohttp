@@ -8,15 +8,15 @@ from conduit.core.entities.errors import (
 )
 from conduit.core.entities.user import AuthToken, Email, RawPassword, User, Username
 from conduit.core.use_cases.users.update_current import UpdateCurrentUserInput, UpdateCurrentUserUseCase
-from tests.unit.conftest import FakePasswordHasher, FakeUserRepository
+from tests.unit.conftest import FakePasswordHasher, FakeUnitOfWork, FakeUserRepository
 
 
 @pytest.fixture
 def use_case(
-    user_repository: FakeUserRepository,
+    unit_of_work: FakeUnitOfWork,
     password_hasher: FakePasswordHasher,
 ) -> UpdateCurrentUserUseCase:
-    return UpdateCurrentUserUseCase(user_repository, password_hasher)
+    return UpdateCurrentUserUseCase(unit_of_work, password_hasher)
 
 
 @pytest.mark.parametrize(
@@ -78,42 +78,42 @@ def use_case(
 )
 async def test_update_current_user_success(
     use_case: UpdateCurrentUserUseCase,
+    user_repository: FakeUserRepository,
     existing_user: User,
     input: UpdateCurrentUserInput,
     expected_attrs: list[tuple[str, object]],
 ) -> None:
-    # Arrange
-    input = input.with_user_id(existing_user.id)
-
     # Act
-    result = await use_case.execute(input)
+    result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
+    assert result.user == existing_user
+    assert user_repository.update_id == existing_user.id
     for attr_name, attr_value in expected_attrs:
-        assert getattr(result.user, attr_name) != getattr(existing_user, attr_name), attr_name
-        assert getattr(result.user, attr_name) == attr_value, attr_name
+        assert user_repository.update_input is not None
+        assert getattr(user_repository.update_input, attr_name) == attr_value, attr_name
 
 
 async def test_update_current_user_update_password(
     use_case: UpdateCurrentUserUseCase,
     password_hasher: FakePasswordHasher,
+    user_repository: FakeUserRepository,
     existing_user: User,
     existing_user_auth_token: AuthToken,
 ) -> None:
-    # Arrange
+    # Act
     input = UpdateCurrentUserInput(
         token=existing_user_auth_token,
-        user_id=existing_user.id,
+        user_id=None,
         password=RawPassword("new-password"),
     )
-
-    # Act
-    result = await use_case.execute(input)
+    result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
-    assert result.user is not None
-    assert result.user.password != existing_user.password
-    assert result.user.password == await password_hasher.hash_password(RawPassword("new-password"))
+    assert result.user == existing_user
+    assert user_repository.update_id == existing_user.id
+    assert user_repository.update_input is not None
+    assert user_repository.update_input.password == await password_hasher.hash_password(RawPassword("new-password"))
 
 
 async def test_update_current_user_not_authenticated(
@@ -121,19 +121,17 @@ async def test_update_current_user_not_authenticated(
     user_repository: FakeUserRepository,
     existing_user: User,
 ) -> None:
-    # Arrange
+    # Act
     input = UpdateCurrentUserInput(
         token=AuthToken("test"),
         user_id=None,
         bio="new bio",
     )
-
-    # Act
     with pytest.raises(UserIsNotAuthenticatedError):
         await use_case.execute(input)
 
     # Assert
-    assert await user_repository.get_by_id(existing_user.id) == existing_user
+    assert user_repository.update_id is None
 
 
 async def test_update_current_user_username_already_exists(
@@ -142,18 +140,19 @@ async def test_update_current_user_username_already_exists(
     existing_user: User,
 ) -> None:
     # Arrange
+    user_repository.update_error = UsernameAlreadyExistsError()
+
+    # Act
     input = UpdateCurrentUserInput(
         token=AuthToken("test"),
         user_id=existing_user.id,
         username=existing_user.username,
     )
-
-    # Act
     with pytest.raises(UsernameAlreadyExistsError):
         await use_case.execute(input)
 
     # Assert
-    assert await user_repository.get_by_id(existing_user.id) == existing_user
+    assert user_repository.update_id == existing_user.id
 
 
 async def test_update_current_user_email_already_exists(
@@ -162,15 +161,16 @@ async def test_update_current_user_email_already_exists(
     existing_user: User,
 ) -> None:
     # Arrange
+    user_repository.update_error = EmailAlreadyExistsError()
+
+    # Act
     input = UpdateCurrentUserInput(
         token=AuthToken("test"),
         user_id=existing_user.id,
         email=existing_user.email,
     )
-
-    # Act
     with pytest.raises(EmailAlreadyExistsError):
         await use_case.execute(input)
 
     # Assert
-    assert await user_repository.get_by_id(existing_user.id) == existing_user
+    assert user_repository.update_id == existing_user.id

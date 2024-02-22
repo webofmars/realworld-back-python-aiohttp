@@ -3,6 +3,7 @@ __all__ = [
     "CommentFilter",
     "CommentId",
     "CommentRepository",
+    "CommentWithExtra",
     "CreateCommentInput",
 ]
 
@@ -11,9 +12,8 @@ import datetime as dt
 import typing as t
 from dataclasses import dataclass
 
-from conduit.core.entities.article import ArticleId, ArticleSlug
-from conduit.core.entities.profile import Profile
-from conduit.core.entities.user import UserId
+from conduit.core.entities.article import ArticleId
+from conduit.core.entities.user import User, UserId
 
 CommentId = t.NewType("CommentId", int)
 
@@ -24,31 +24,42 @@ class Comment:
     created_at: dt.datetime
     updated_at: t.Optional[dt.datetime]
     body: str
-    author: Profile
+    author_id: UserId
+
+
+@dataclass(frozen=True)
+class CommentWithExtra:
+    v: Comment
+    author: User
+    is_author_followed: bool
+
+    def __post_init__(self) -> None:
+        assert self.v.author_id == self.author.id
 
 
 @dataclass(frozen=True)
 class CreateCommentInput:
+    author_id: UserId
     article_id: ArticleId
     body: str
 
 
 @dataclass(frozen=True)
 class CommentFilter:
-    article_slug: ArticleSlug | None = None
+    article_id: ArticleId | None = None
 
 
 class CommentRepository(t.Protocol):
     @abc.abstractmethod
-    async def create(self, input: CreateCommentInput, by: UserId) -> Comment:
+    async def create(self, input: CreateCommentInput) -> Comment:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def get_many(self, filter: CommentFilter, by: UserId | None = None) -> t.Iterable[Comment]:
+    async def get_many(self, filter: CommentFilter) -> list[Comment]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def get_by_id(self, id: CommentId, by: UserId | None = None) -> Comment | None:
+    async def get_by_id(self, id: CommentId) -> Comment | None:
         raise NotImplementedError()
 
     @abc.abstractmethod

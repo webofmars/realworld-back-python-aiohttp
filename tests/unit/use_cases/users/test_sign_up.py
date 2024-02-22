@@ -1,18 +1,18 @@
 import pytest
 
 from conduit.core.entities.errors import EmailAlreadyExistsError, UsernameAlreadyExistsError
-from conduit.core.entities.user import CreateUserInput, Email, PasswordHash, RawPassword, Username
+from conduit.core.entities.user import Email, RawPassword, User, Username
 from conduit.core.use_cases.users.sign_up import SignUpInput, SignUpUseCase
-from tests.unit.conftest import FakeAuthTokenGenerator, FakePasswordHasher, FakeUserRepository
+from tests.unit.conftest import FakeAuthTokenGenerator, FakePasswordHasher, FakeUnitOfWork, FakeUserRepository
 
 
 @pytest.fixture
 def use_case(
-    user_repository: FakeUserRepository,
+    unit_of_work: FakeUnitOfWork,
     password_hasher: FakePasswordHasher,
     auth_token_generator: FakeAuthTokenGenerator,
 ) -> SignUpUseCase:
-    return SignUpUseCase(user_repository, password_hasher, auth_token_generator)
+    return SignUpUseCase(unit_of_work, password_hasher, auth_token_generator)
 
 
 @pytest.mark.parametrize(
@@ -41,18 +41,18 @@ async def test_sign_up_success(
     user_repository: FakeUserRepository,
     password_hasher: FakePasswordHasher,
     auth_token_generator: FakeAuthTokenGenerator,
+    existing_user: User,
     input: SignUpInput,
 ) -> None:
     # Act
     result = await use_case.execute(input)
 
     # Assert
-    assert result.user.username == input.username
-    assert result.user.email == input.email
-    assert result.user.bio == ""
-    assert result.user.image is None
-    assert await password_hasher.verify(input.raw_password, result.user.password)
-    assert await user_repository.get_by_id(result.user.id) == result.user
+    assert result.user == existing_user
+    assert user_repository.create_input is not None
+    assert user_repository.create_input.username == input.username
+    assert user_repository.create_input.email == input.email
+    assert user_repository.create_input.password == await password_hasher.hash_password(input.raw_password)
     assert await auth_token_generator.get_user_id(result.token) == result.user.id
 
 
@@ -61,11 +61,7 @@ async def test_sign_up_username_already_exists(
     user_repository: FakeUserRepository,
 ) -> None:
     # Arrange
-    await user_repository.create(
-        CreateUserInput(
-            username=Username("test"), email=Email("test@test.test"), password=PasswordHash("test-password-hash")
-        )
-    )
+    user_repository.create_error = UsernameAlreadyExistsError()
 
     # Act
     with pytest.raises(UsernameAlreadyExistsError):
@@ -78,7 +74,7 @@ async def test_sign_up_username_already_exists(
         )
 
     # Assert
-    assert await user_repository.get_by_email(Email("another-test-email@test.test")) is None
+    assert user_repository.create_input is not None
 
 
 async def test_sign_up_email_already_exists(
@@ -86,11 +82,7 @@ async def test_sign_up_email_already_exists(
     user_repository: FakeUserRepository,
 ) -> None:
     # Arrange
-    await user_repository.create(
-        CreateUserInput(
-            username=Username("test-1"), email=Email("test@test.test"), password=PasswordHash("test-password-hash")
-        )
-    )
+    user_repository.create_error = EmailAlreadyExistsError()
 
     # Act
     with pytest.raises(EmailAlreadyExistsError):
@@ -103,6 +95,4 @@ async def test_sign_up_email_already_exists(
         )
 
     # Assert
-    user = await user_repository.get_by_email(Email("test@test.test"))
-    assert user is not None
-    assert user.username == Username("test-1")
+    assert user_repository.create_input is not None
