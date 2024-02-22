@@ -26,9 +26,8 @@ USER = sa.Table(
 FOLLOWER = sa.Table(
     "follower",
     METADATA,
-    sa.Column("id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
+    sa.Column("follower_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
     sa.Column("followed_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
     sa.Column("created_at", sa.DateTime, nullable=False),
-    sa.PrimaryKeyConstraint("id", "followed_id"),
-    sa.Index("follower_followed_id_idx", "followed_id"),
+    sa.PrimaryKeyConstraint("follower_id", "followed_id"),
 )
