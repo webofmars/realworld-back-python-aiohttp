@@ -40,6 +40,9 @@ class Article:
 class Tag:
     v: str
 
+    def __str__(self) -> str:
+        return self.v
+
 
 @dataclass(frozen=True)
 class ArticleWithExtra:

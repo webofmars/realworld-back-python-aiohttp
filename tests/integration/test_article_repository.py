@@ -9,27 +9,6 @@ from conduit.core.entities.user import User, UserId
 from conduit.impl.article_repository import PostgresqlArticleRepository
 
 
-@pytest.fixture
-async def existing_articles(
-    db_engine: AsyncEngine,
-    existing_users: tuple[User, User],
-) -> list[Article]:
-    user_1, user_2 = existing_users
-    create_inputs = [
-        CreateArticleInput(user_1.id, "title-1", "description-1", "body-1"),
-        CreateArticleInput(user_1.id, "title-2", "description-2", "body-2"),
-        CreateArticleInput(user_2.id, "title-3", "description-3", "body-3"),
-        CreateArticleInput(user_2.id, "title-4", "description-4", "body-4"),
-    ]
-    articles = []
-    async with db_engine.begin() as connection:
-        repo = PostgresqlArticleRepository(connection)
-        for input in create_inputs:
-            article = await repo.create(input)
-            articles.append(article)
-    return articles
-
-
 @pytest.mark.parametrize(
     "input, author_ix",
     [
