@@ -1,3 +1,7 @@
+__all__ = [
+    "PostgresqlArticleRepository",
+]
+
 import datetime as dt
 import typing as t
 from secrets import token_urlsafe

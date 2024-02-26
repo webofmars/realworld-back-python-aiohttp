@@ -1,3 +1,7 @@
+__all__ = [
+    "PostgresqlTagRepository",
+]
+
 import datetime as dt
 import typing as t
 
