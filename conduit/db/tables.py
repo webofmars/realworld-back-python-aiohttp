@@ -1,6 +1,7 @@
 __all__ = [
     "ARTICLE",
     "ARTICLE_TAG",
+    "COMMENT",
     "FAVORITE_ARTICLE",
     "FOLLOWER",
     "METADATA",
@@ -77,4 +78,16 @@ FAVORITE_ARTICLE = sa.Table(
     sa.Column("user_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False, index=True),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.PrimaryKeyConstraint("article_id", "user_id"),
+)
+
+
+COMMENT = sa.Table(
+    "comment",
+    METADATA,
+    sa.Column("id", sa.BigInteger, primary_key=True),
+    sa.Column("author_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
+    sa.Column("article_id", sa.BigInteger, sa.ForeignKey(ARTICLE.c.id), nullable=False, index=True),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("updated_at", sa.DateTime, nullable=True),
+    sa.Column("body", sa.Text, nullable=False),
 )

@@ -325,13 +325,14 @@ def existing_article() -> Article:
 
 
 @pytest.fixture
-def existing_comment() -> Comment:
+def existing_comment(existing_article: Article) -> Comment:
     return Comment(
         id=CommentId(1),
         created_at=dt.datetime.utcnow(),
         updated_at=None,
         body="test",
         author_id=UserId(1),
+        article_id=existing_article.id,
     )
 
 

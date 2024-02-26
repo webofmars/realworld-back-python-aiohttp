@@ -21,10 +21,11 @@ CommentId = t.NewType("CommentId", int)
 @dataclass(frozen=True)
 class Comment:
     id: CommentId
+    author_id: UserId
+    article_id: ArticleId
     created_at: dt.datetime
     updated_at: t.Optional[dt.datetime]
     body: str
-    author_id: UserId
 
 
 @dataclass(frozen=True)
