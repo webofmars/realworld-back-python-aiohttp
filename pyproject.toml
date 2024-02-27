@@ -12,6 +12,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11 <3.12"
 aiohttp = "^3.9.1"
+argon2-cffi = "^23.1.0"
 asyncpg = "^0.29.0"
 dependency-injector = "^4.41.0"
 dynaconf = "^3.2.4"
