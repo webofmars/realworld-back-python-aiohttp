@@ -7,6 +7,7 @@ __all__ = [
 import logging
 from dataclasses import dataclass, replace
 
+from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import AuthToken, User, UserId
 from conduit.core.use_cases import UseCase
@@ -23,7 +24,7 @@ class GetCurrentUserInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class GetCurrentUserResult:
-    user: User | None
+    user: User
     token: AuthToken
 
 
@@ -42,4 +43,5 @@ class GetCurrentUserUseCase(UseCase[GetCurrentUserInput, GetCurrentUserResult]):
             user = await uow.users.get_by_id(user_id)
         if user is None:
             LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
+            raise UserIsNotAuthenticatedError()
         return GetCurrentUserResult(user, input.token)

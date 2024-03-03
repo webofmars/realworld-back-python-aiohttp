@@ -10,6 +10,7 @@ from dataclasses import dataclass, replace
 from yarl import URL
 
 from conduit.core.entities.common import NotSet
+from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import (
     AuthToken,
@@ -51,7 +52,7 @@ class UpdateCurrentUserInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class UpdateCurrentUserResult:
-    user: User | None
+    user: User
     token: AuthToken
 
 
@@ -83,4 +84,5 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
             )
         if updated_user is None:
             LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
+            raise UserIsNotAuthenticatedError()
         return UpdateCurrentUserResult(updated_user, input.token)

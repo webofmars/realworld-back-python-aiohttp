@@ -19,7 +19,7 @@ class JwtAuthTokenGenerator(AuthTokenGenerator):
     def __init__(
         self,
         secret_key: str,
-        expiration_time: dt.timedelta,
+        expiration_time: dt.timedelta = dt.timedelta(days=10),
         now: t.Callable[[], dt.datetime] = dt.datetime.utcnow,
     ) -> None:
         self._secret_key = secret_key
