@@ -10,8 +10,10 @@ from aiohttp import web
 from aiohttp_apispec import docs, headers_schema, json_schema, response_schema
 from marshmallow import Schema, fields, post_load, validate
 
-from conduit.api.base import Endpoint, ErrorSchema, RequiredAuthHeaderSchema, UserSchema
-from conduit.api.users.response import convert_to_user_response
+from conduit.api.auth import RequiredAuthHeaderSchema
+from conduit.api.base import Endpoint
+from conduit.api.response import ErrorSchema
+from conduit.api.users.response import UserResponseSchema, UserResponseModel
 from conduit.core.entities.common import NotSet
 from conduit.core.entities.user import AuthToken
 from conduit.core.use_cases import UseCase
@@ -46,15 +48,11 @@ class UpdateCurrentUserRequestSchema(Schema):
         return data["user"]
 
 
-class UpdateCurrentUserResponseSchema(Schema):
-    user = fields.Nested(UserSchema(), required=True)
-
-
 def update_current_user_endpoint(use_case: UseCase[UpdateCurrentUserInput, UpdateCurrentUserResult]) -> Endpoint:
     @docs(tags=["users"], summary="Update the authenticated user.")
     @headers_schema(RequiredAuthHeaderSchema, put_into="auth_token")
     @json_schema(UpdateCurrentUserRequestSchema, put_into="input")
-    @response_schema(UpdateCurrentUserResponseSchema, code=HTTPStatus.OK)
+    @response_schema(UserResponseSchema, code=HTTPStatus.OK)
     @response_schema(ErrorSchema, code=HTTPStatus.UNAUTHORIZED, description="User is not authenticated.")
     @response_schema(ErrorSchema, code=HTTPStatus.BAD_REQUEST, description="Email or username already exists.")
     async def handler(request: web.Request) -> web.Response:
@@ -62,6 +60,7 @@ def update_current_user_endpoint(use_case: UseCase[UpdateCurrentUserInput, Updat
         assert isinstance(input, UpdateCurrentUserInput)
         input = replace(input, token=request["auth_token"])
         result = await use_case.execute(input)
-        return convert_to_user_response(result.user, result.token)
+        response_model = UserResponseModel.new(result.user, result.token)
+        return response_model.response()
 
     return handler

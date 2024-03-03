@@ -1,24 +1,32 @@
 __all__ = [
-    "convert_to_user_response",
+    "UserResponseModel",
+    "UserResponseSchema",
 ]
 
+from dataclasses import dataclass
 from http import HTTPStatus
 
 from aiohttp import web
+from marshmallow import Schema, fields
 
-from conduit.core.entities.user import AuthToken, User
+from conduit.api.response import UserModel, UserSchema
+from conduit.core.entities.user import User, AuthToken
 
 
-def convert_to_user_response(user: User, token: AuthToken, status: HTTPStatus = HTTPStatus.OK) -> web.Response:
-    return web.json_response(
-        {
-            "user": {
-                "token": token,
-                "email": user.email,
-                "username": user.username,
-                "bio": user.bio,
-                "image": str(user.image) if user.image is not None else None,
-            }
-        },
-        status=status,
-    )
+@dataclass(frozen=True)
+class UserResponseModel:
+    user: UserModel
+
+    @classmethod
+    def new(cls, user: User, token: AuthToken) -> "UserResponseModel":
+        return UserResponseModel(user=UserModel.new(user, token))
+
+    def response(self, status: HTTPStatus = HTTPStatus.OK) -> web.Response:
+        return web.json_response(data=_SCHEMA.dump(self), status=status)
+
+
+class UserResponseSchema(Schema):
+    user = fields.Nested(UserSchema(), required=True)
+
+
+_SCHEMA = UserResponseSchema()

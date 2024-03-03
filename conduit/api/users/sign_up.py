@@ -9,8 +9,9 @@ from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
 from marshmallow import Schema, fields, post_load, validate
 
-from conduit.api.base import Endpoint, ErrorSchema, UserSchema
-from conduit.api.users.response import convert_to_user_response
+from conduit.api.base import Endpoint
+from conduit.api.response import ErrorSchema
+from conduit.api.users.response import UserResponseModel, UserResponseSchema
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.users.sign_up import SignUpInput, SignUpResult
 
@@ -37,19 +38,16 @@ class SignUpRequestSchema(Schema):
         return data["user"]
 
 
-class SignUpResponseSchema(Schema):
-    user = fields.Nested(UserSchema(), required=True)
-
-
 def sign_up_endpoint(use_case: UseCase[SignUpInput, SignUpResult]) -> Endpoint:
     @docs(tags=["users"], summary="Sign up with email and password.")
     @request_schema(SignUpRequestSchema, put_into="input")
-    @response_schema(SignUpResponseSchema, code=HTTPStatus.CREATED, description="User successfully signed up.")
+    @response_schema(UserResponseSchema, code=HTTPStatus.CREATED, description="User successfully signed up.")
     @response_schema(ErrorSchema, code=HTTPStatus.BAD_REQUEST, description="Email or username already exists.")
     async def handler(request: web.Request) -> web.Response:
         input = request["input"]
         assert isinstance(input, SignUpInput)
         result = await use_case.execute(input)
-        return convert_to_user_response(result.user, result.token, status=HTTPStatus.CREATED)
+        response_model = UserResponseModel.new(result.user, result.token)
+        return response_model.response(status=HTTPStatus.CREATED)
 
     return handler
