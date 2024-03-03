@@ -2,8 +2,10 @@ __all__ = [
     "Endpoint",
     "ErrorSchema",
     "OptionalAuthHeaderSchema",
+    "ProfileSchema",
     "RequiredAuthHeaderSchema",
     "UserSchema",
+    "convert_to_profile",
 ]
 
 import typing as t
@@ -11,7 +13,7 @@ import typing as t
 from aiohttp import web
 from marshmallow import Schema, ValidationError, fields, post_load, validate, validates
 
-from conduit.core.entities.user import AuthToken
+from conduit.core.entities.user import AuthToken, User
 
 AUTH_HEADER_PREFIX: t.Final = "Token "
 
@@ -62,3 +64,21 @@ class UserSchema(Schema):
     username = fields.String(required=True)
     bio = fields.String(required=True)
     image = fields.URL(required=False, allow_none=True)
+
+
+class ProfileSchema(Schema):
+    username = fields.String(required=True)
+    bio = fields.String(required=True)
+    image = fields.URL(required=False, allow_none=True)
+    following = fields.Boolean(required=True)
+
+
+def convert_to_profile(user: User, following: bool) -> dict[str, t.Any]:
+    return {
+        "profile": {
+            "username": user.username,
+            "bio": user.bio,
+            "image": str(user.image) if user.image is not None else None,
+            "following": following,
+        }
+    }
