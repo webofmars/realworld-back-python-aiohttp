@@ -10,6 +10,12 @@ from dependency_injector.containers import DeclarativeContainer
 from dependency_injector.providers import DependenciesContainer, Provider, Singleton
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from conduit.api.articles.create import create_article_endpoint
+from conduit.api.articles.delete import delete_article_endpoint
+from conduit.api.articles.feed import feed_articles_endpoint
+from conduit.api.articles.get import get_article_endpoint
+from conduit.api.articles.list import list_articles_endpoint
+from conduit.api.articles.update import update_article_endpoint
 from conduit.api.errors import error_handling_middleware
 from conduit.api.profiles.follow import follow_endpoint
 from conduit.api.profiles.get import get_profile_endpoint
@@ -22,6 +28,12 @@ from conduit.api.users import (
 )
 from conduit.config import db_url, settings
 from conduit.core.use_cases import UseCase
+from conduit.core.use_cases.articles.create import CreateArticleInput, CreateArticleResult, CreateArticleUseCase
+from conduit.core.use_cases.articles.delete import DeleteArticleInput, DeleteArticleResult, DeleteArticleUseCase
+from conduit.core.use_cases.articles.feed import FeedArticlesInput, FeedArticlesResult, FeedArticlesUseCase
+from conduit.core.use_cases.articles.get import GetArticleInput, GetArticleResult, GetArticleUseCase
+from conduit.core.use_cases.articles.list import ListArticlesInput, ListArticlesResult, ListArticlesUseCase
+from conduit.core.use_cases.articles.update import UpdateArticleInput, UpdateArticleResult, UpdateArticleUseCase
 from conduit.core.use_cases.auth import WithAuthentication
 from conduit.core.use_cases.profiles.follow import FollowInput, FollowResult, FollowUseCase
 from conduit.core.use_cases.profiles.get import GetProfileInput, GetProfileResult, GetProfileUseCase
@@ -55,6 +67,13 @@ def create_app() -> web.Application:
             web.get("/api/v1/profiles/{username}", get_profile_endpoint(use_cases.get_profile())),
             web.post("/api/v1/profiles/{username}/follow", follow_endpoint(use_cases.follow())),
             web.delete("/api/v1/profiles/{username}/follow", unfollow_endpoint(use_cases.unfollow())),
+            # Articles
+            web.post("/api/v1/articles", create_article_endpoint(use_cases.create_article())),
+            web.get("/api/v1/articles", list_articles_endpoint(use_cases.list_articles())),
+            web.get("/api/v1/articles/feed", feed_articles_endpoint(use_cases.feed_articles())),
+            web.get("/api/v1/articles/{slug}", get_article_endpoint(use_cases.get_article())),
+            web.put("/api/v1/articles/{slug}", update_article_endpoint(use_cases.update_article())),
+            web.delete("/api/v1/articles/{slug}", delete_article_endpoint(use_cases.delete_article())),
         ]
     )
     app.middlewares.append(validation_middleware)
@@ -127,4 +146,36 @@ class UseCases(DeclarativeContainer):
         WithAuthentication,
         auth_token_generator=deps.auth_token_generator,
         use_case=Singleton(UnfollowUseCase, unit_of_work=deps.unit_of_work),
+    )
+
+    # Articles
+    create_article: Provider[UseCase[CreateArticleInput, CreateArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(CreateArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    list_articles: Provider[UseCase[ListArticlesInput, ListArticlesResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(ListArticlesUseCase, unit_of_work=deps.unit_of_work),
+    )
+    feed_articles: Provider[UseCase[FeedArticlesInput, FeedArticlesResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(FeedArticlesUseCase, unit_of_work=deps.unit_of_work),
+    )
+    get_article: Provider[UseCase[GetArticleInput, GetArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(GetArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    update_article: Provider[UseCase[UpdateArticleInput, UpdateArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(UpdateArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    delete_article: Provider[UseCase[DeleteArticleInput, DeleteArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(DeleteArticleUseCase, unit_of_work=deps.unit_of_work),
     )

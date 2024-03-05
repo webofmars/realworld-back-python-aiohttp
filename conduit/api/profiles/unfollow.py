@@ -13,7 +13,7 @@ from aiohttp_apispec import (
 
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
-from conduit.api.profiles.response import ProfileResponseSchema, USER_NOT_FOUND_RESPONSE, ProfileResponseModel
+from conduit.api.profiles.response import USER_NOT_FOUND_RESPONSE, ProfileResponseModel, ProfileResponseSchema
 from conduit.api.response import ErrorSchema
 from conduit.core.entities.user import Username
 from conduit.core.use_cases import UseCase

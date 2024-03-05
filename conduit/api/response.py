@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from marshmallow import Schema, fields
 
-from conduit.core.entities.user import User, AuthToken
+from conduit.core.entities.user import AuthToken, User
 
 
 @dataclass(frozen=True)

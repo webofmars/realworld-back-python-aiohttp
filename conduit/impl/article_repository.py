@@ -118,7 +118,7 @@ class PostgresqlArticleRepository(ArticleRepository):
                     tables.ARTICLE, tables.ARTICLE_TAG, onclause=tables.ARTICLE.c.id == tables.ARTICLE_TAG.c.article_id
                 )
                 .join_from(tables.ARTICLE_TAG, tables.TAG, onclause=tables.ARTICLE_TAG.c.tag_id == tables.TAG.c.id)
-                .where(tables.TAG.c.tag == filter.tag)
+                .where(tables.TAG.c.tag == str(filter.tag))
             )
         if filter.author is not None:
             stmt = stmt.join_from(

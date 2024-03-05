@@ -13,7 +13,7 @@ from marshmallow import Schema, fields, post_load, validate
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
 from conduit.api.response import ErrorSchema
-from conduit.api.users.response import UserResponseSchema, UserResponseModel
+from conduit.api.users.response import UserResponseModel, UserResponseSchema
 from conduit.core.entities.common import NotSet
 from conduit.core.entities.user import AuthToken
 from conduit.core.use_cases import UseCase

@@ -10,7 +10,7 @@ from aiohttp_apispec import docs, headers_schema, response_schema
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
 from conduit.api.response import ErrorSchema
-from conduit.api.users.response import UserResponseSchema, UserResponseModel
+from conduit.api.users.response import UserResponseModel, UserResponseSchema
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.users.get_current import GetCurrentUserInput, GetCurrentUserResult
 

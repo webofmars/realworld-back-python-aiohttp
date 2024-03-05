@@ -10,8 +10,8 @@ from conduit.impl.tag_repository import PostgresqlTagRepository
     [
         pytest.param([], 0, [], id="1"),
         pytest.param(["t1"], 1, ["t1"], id="2"),
-        pytest.param(["t2", "t1"], 2, ["t2", "t1"], id="3"),
-        pytest.param(["t2", "t1", "t2", "t1", "t3"], 3, ["t2", "t1", "t3"], id="4"),
+        pytest.param(["t2", "t1"], 2, ["t1", "t2"], id="3"),
+        pytest.param(["t2", "t1", "t2", "t1", "t3"], 3, ["t1", "t2", "t3"], id="4"),
     ],
 )
 async def test_create(

@@ -60,13 +60,13 @@ class HttpErrorVisitor(Visitor[tuple[dict[str, t.Any], HTTPStatus]]):
         self,
         error: PermissionDeniedError,
     ) -> tuple[dict[str, t.Any], HTTPStatus]:
-        raise NotImplementedError()
+        return {"error": "permission denied"}, HTTPStatus.FORBIDDEN
 
     def visit_article_does_not_exist(
         self,
         error: ArticleDoesNotExistError,
     ) -> tuple[dict[str, t.Any], HTTPStatus]:
-        raise NotImplementedError()
+        return {"error": "article not found"}, HTTPStatus.NOT_FOUND
 
 
 _HTTP_ERROR_VISITOR = HttpErrorVisitor()

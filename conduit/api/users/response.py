@@ -10,7 +10,7 @@ from aiohttp import web
 from marshmallow import Schema, fields
 
 from conduit.api.response import UserModel, UserSchema
-from conduit.core.entities.user import User, AuthToken
+from conduit.core.entities.user import AuthToken, User
 
 
 @dataclass(frozen=True)

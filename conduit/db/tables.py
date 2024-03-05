@@ -64,7 +64,7 @@ TAG = sa.Table(
 ARTICLE_TAG = sa.Table(
     "article_tag",
     METADATA,
-    sa.Column("article_id", sa.BigInteger, sa.ForeignKey(ARTICLE.c.id), nullable=False),
+    sa.Column("article_id", sa.BigInteger, sa.ForeignKey(ARTICLE.c.id, ondelete="CASCADE"), nullable=False),
     sa.Column("tag_id", sa.BigInteger, sa.ForeignKey(TAG.c.id), nullable=False, index=True),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.PrimaryKeyConstraint("article_id", "tag_id"),

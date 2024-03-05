@@ -14,7 +14,6 @@ from marshmallow import Schema, fields
 from conduit.api.response import ProfileModel, ProfileSchema
 from conduit.core.entities.user import User
 
-
 USER_NOT_FOUND_RESPONSE: t.Final = web.json_response({"error": "user not found"}, status=HTTPStatus.NOT_FOUND)
 
 
