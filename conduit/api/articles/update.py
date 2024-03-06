@@ -50,7 +50,7 @@ def update_article_endpoint(use_case: UseCase[UpdateArticleInput, UpdateArticleR
     @docs(tags=["articles"], summary="Update an article.")
     @headers_schema(RequiredAuthHeaderSchema, put_into="auth_token")
     @request_schema(UpdateArticleRequestSchema, put_into="input")
-    @response_schema(ArticleResponseSchema, code=HTTPStatus.CREATED, description="Article successfully updated.")
+    @response_schema(ArticleResponseSchema, code=HTTPStatus.OK, description="Article successfully updated.")
     @response_schema(ErrorSchema, code=HTTPStatus.NOT_FOUND, description="Article not found.")
     @response_schema(ErrorSchema, code=HTTPStatus.FORBIDDEN, description="Permission denied.")
     @response_schema(ErrorSchema, code=HTTPStatus.UNAUTHORIZED, description="User is not authenticated.")

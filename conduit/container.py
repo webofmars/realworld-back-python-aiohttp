@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from conduit.api.articles.create import create_article_endpoint
 from conduit.api.articles.delete import delete_article_endpoint
+from conduit.api.articles.favorite import favorite_article_endpoint
 from conduit.api.articles.feed import feed_articles_endpoint
 from conduit.api.articles.get import get_article_endpoint
 from conduit.api.articles.list import list_articles_endpoint
+from conduit.api.articles.unfavorite import unfavorite_article_endpoint
 from conduit.api.articles.update import update_article_endpoint
 from conduit.api.errors import error_handling_middleware
 from conduit.api.profiles.follow import follow_endpoint
@@ -30,9 +32,15 @@ from conduit.config import db_url, settings
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.articles.create import CreateArticleInput, CreateArticleResult, CreateArticleUseCase
 from conduit.core.use_cases.articles.delete import DeleteArticleInput, DeleteArticleResult, DeleteArticleUseCase
+from conduit.core.use_cases.articles.favorite import FavoriteArticleInput, FavoriteArticleResult, FavoriteArticleUseCase
 from conduit.core.use_cases.articles.feed import FeedArticlesInput, FeedArticlesResult, FeedArticlesUseCase
 from conduit.core.use_cases.articles.get import GetArticleInput, GetArticleResult, GetArticleUseCase
 from conduit.core.use_cases.articles.list import ListArticlesInput, ListArticlesResult, ListArticlesUseCase
+from conduit.core.use_cases.articles.unfavorite import (
+    UnfavoriteArticleInput,
+    UnfavoriteArticleResult,
+    UnfavoriteArticleUseCase,
+)
 from conduit.core.use_cases.articles.update import UpdateArticleInput, UpdateArticleResult, UpdateArticleUseCase
 from conduit.core.use_cases.auth import WithAuthentication
 from conduit.core.use_cases.profiles.follow import FollowInput, FollowResult, FollowUseCase
@@ -74,6 +82,8 @@ def create_app() -> web.Application:
             web.get("/api/v1/articles/{slug}", get_article_endpoint(use_cases.get_article())),
             web.put("/api/v1/articles/{slug}", update_article_endpoint(use_cases.update_article())),
             web.delete("/api/v1/articles/{slug}", delete_article_endpoint(use_cases.delete_article())),
+            web.post("/api/v1/articles/{slug}/favorite", favorite_article_endpoint(use_cases.favorite_article())),
+            web.delete("/api/v1/articles/{slug}/favorite", unfavorite_article_endpoint(use_cases.unfavorite_article())),
         ]
     )
     app.middlewares.append(validation_middleware)
@@ -178,4 +188,14 @@ class UseCases(DeclarativeContainer):
         WithAuthentication,
         auth_token_generator=deps.auth_token_generator,
         use_case=Singleton(DeleteArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    favorite_article: Provider[UseCase[FavoriteArticleInput, FavoriteArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(FavoriteArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    unfavorite_article: Provider[UseCase[UnfavoriteArticleInput, UnfavoriteArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(UnfavoriteArticleUseCase, unit_of_work=deps.unit_of_work),
     )
