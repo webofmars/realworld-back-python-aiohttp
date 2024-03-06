@@ -86,7 +86,7 @@ COMMENT = sa.Table(
     METADATA,
     sa.Column("id", sa.BigInteger, primary_key=True),
     sa.Column("author_id", sa.BigInteger, sa.ForeignKey(USER.c.id), nullable=False),
-    sa.Column("article_id", sa.BigInteger, sa.ForeignKey(ARTICLE.c.id), nullable=False, index=True),
+    sa.Column("article_id", sa.BigInteger, sa.ForeignKey(ARTICLE.c.id, ondelete="CASCADE"), nullable=False, index=True),
     sa.Column("created_at", sa.DateTime, nullable=False),
     sa.Column("updated_at", sa.DateTime, nullable=True),
     sa.Column("body", sa.Text, nullable=False),

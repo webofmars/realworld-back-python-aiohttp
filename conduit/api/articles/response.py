@@ -62,7 +62,7 @@ class ArticleSchema(Schema):
     body = fields.String(required=True)
     tag_list = fields.List(fields.String(), required=True, data_key="tagList")
     created_at = fields.DateTime(required=True, data_key="createdAt")
-    updated_at = fields.DateTime(required=False, allow_none=True, data_key="updatedAt")
+    updated_at = fields.DateTime(required=True, data_key="updatedAt")
     is_favorite = fields.Boolean(required=True, data_key="favorited")
     favorite_count = fields.Integer(required=True, data_key="favoritesCount")
     author = fields.Nested(ProfileSchema(), required=True)

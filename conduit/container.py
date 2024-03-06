@@ -18,6 +18,9 @@ from conduit.api.articles.get import get_article_endpoint
 from conduit.api.articles.list import list_articles_endpoint
 from conduit.api.articles.unfavorite import unfavorite_article_endpoint
 from conduit.api.articles.update import update_article_endpoint
+from conduit.api.comments.add_to_article import add_comment_to_article_endpoint
+from conduit.api.comments.delete import delete_comment_endpoint
+from conduit.api.comments.get_from_article import get_comments_from_article_endpoint
 from conduit.api.errors import error_handling_middleware
 from conduit.api.profiles.follow import follow_endpoint
 from conduit.api.profiles.get import get_profile_endpoint
@@ -43,6 +46,17 @@ from conduit.core.use_cases.articles.unfavorite import (
 )
 from conduit.core.use_cases.articles.update import UpdateArticleInput, UpdateArticleResult, UpdateArticleUseCase
 from conduit.core.use_cases.auth import WithAuthentication
+from conduit.core.use_cases.comments.add_to_article import (
+    AddCommentToArticleInput,
+    AddCommentToArticleResult,
+    AddCommentToArticleUseCase,
+)
+from conduit.core.use_cases.comments.delete import DeleteCommentInput, DeleteCommentResult, DeleteCommentUseCase
+from conduit.core.use_cases.comments.get_from_article import (
+    GetCommentsFromArticleInput,
+    GetCommentsFromArticleResult,
+    GetCommentsFromArticleUseCase,
+)
 from conduit.core.use_cases.profiles.follow import FollowInput, FollowResult, FollowUseCase
 from conduit.core.use_cases.profiles.get import GetProfileInput, GetProfileResult, GetProfileUseCase
 from conduit.core.use_cases.profiles.unfollow import UnfollowInput, UnfollowResult, UnfollowUseCase
@@ -84,6 +98,19 @@ def create_app() -> web.Application:
             web.delete("/api/v1/articles/{slug}", delete_article_endpoint(use_cases.delete_article())),
             web.post("/api/v1/articles/{slug}/favorite", favorite_article_endpoint(use_cases.favorite_article())),
             web.delete("/api/v1/articles/{slug}/favorite", unfavorite_article_endpoint(use_cases.unfavorite_article())),
+            # Comments
+            web.post(
+                "/api/v1/articles/{slug}/comments",
+                add_comment_to_article_endpoint(use_cases.add_comment_to_article()),
+            ),
+            web.get(
+                "/api/v1/articles/{slug}/comments",
+                get_comments_from_article_endpoint(use_cases.get_comments_from_article()),
+            ),
+            web.delete(
+                r"/api/v1/articles/{slug}/comments/{comment_id:\d+}",
+                delete_comment_endpoint(use_cases.delete_comment()),
+            ),
         ]
     )
     app.middlewares.append(validation_middleware)
@@ -198,4 +225,21 @@ class UseCases(DeclarativeContainer):
         WithAuthentication,
         auth_token_generator=deps.auth_token_generator,
         use_case=Singleton(UnfavoriteArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+
+    # Comments
+    add_comment_to_article: Provider[UseCase[AddCommentToArticleInput, AddCommentToArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(AddCommentToArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    get_comments_from_article: Provider[UseCase[GetCommentsFromArticleInput, GetCommentsFromArticleResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(GetCommentsFromArticleUseCase, unit_of_work=deps.unit_of_work),
+    )
+    delete_comment: Provider[UseCase[DeleteCommentInput, DeleteCommentResult]] = Singleton(
+        WithAuthentication,
+        auth_token_generator=deps.auth_token_generator,
+        use_case=Singleton(DeleteCommentUseCase, unit_of_work=deps.unit_of_work),
     )

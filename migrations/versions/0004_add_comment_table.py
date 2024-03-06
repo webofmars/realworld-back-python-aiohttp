@@ -29,6 +29,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["article_id"],
             ["article.id"],
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["author_id"],

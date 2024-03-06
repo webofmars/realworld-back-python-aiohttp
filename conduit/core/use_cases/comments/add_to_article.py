@@ -9,13 +9,13 @@ import typing as t
 from dataclasses import dataclass, replace
 
 from conduit.core.entities.article import ArticleSlug
-from conduit.core.entities.comment import Comment, CreateCommentInput
+from conduit.core.entities.comment import CommentWithExtra, CreateCommentInput
 from conduit.core.entities.errors import ArticleDoesNotExistError, UserIsNotAuthenticatedError
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import User, UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
-from conduit.core.use_cases.common import get_article
+from conduit.core.use_cases.common import get_article, is_user_followed
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ class AddCommentToArticleInput(WithAuthenticationInput):
 
 @dataclass(frozen=True)
 class AddCommentToArticleResult:
-    comment: Comment
-    author: User
+    comment: CommentWithExtra
 
 
 class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToArticleResult]):
@@ -48,6 +47,7 @@ class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToA
         """
         user_id = input.ensure_authenticated()
         author = await self._get_author(user_id)
+        is_author_followed = await is_user_followed(self._unit_of_work, author.id, by=author.id)
         article = await get_article(self._unit_of_work, input.article_slug)
         if article is None:
             raise ArticleDoesNotExistError()
@@ -57,7 +57,7 @@ class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToA
             "comment has been created",
             extra={"comment_id": comment.id, "article_id": article.id, "user_id": user_id},
         )
-        return AddCommentToArticleResult(comment, author)
+        return AddCommentToArticleResult(CommentWithExtra(comment, author, is_author_followed))
 
     async def _get_author(self, user_id: UserId) -> User:
         async with self._unit_of_work.begin() as uow:

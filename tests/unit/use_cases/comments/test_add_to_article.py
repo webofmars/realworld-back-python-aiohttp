@@ -30,7 +30,7 @@ async def test_add_comment_to_article_success(
     result = await use_case.execute(input.with_user_id(existing_user.id))
 
     # Assert
-    assert result.comment == existing_comment
+    assert result.comment.v == existing_comment
     assert comment_repository.create_input is not None
     assert comment_repository.create_input.article_id == existing_article.id
     assert comment_repository.create_input.body == "test-add-comment-to-article"
