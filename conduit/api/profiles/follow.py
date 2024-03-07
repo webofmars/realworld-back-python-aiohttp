@@ -13,7 +13,7 @@ from aiohttp_apispec import (
 
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
-from conduit.api.profiles.response import USER_NOT_FOUND_RESPONSE, ProfileResponseModel, ProfileResponseSchema
+from conduit.api.profiles.response import ProfileResponseModel, ProfileResponseSchema, user_not_found
 from conduit.api.response import ErrorSchema
 from conduit.core.entities.user import Username
 from conduit.core.use_cases import UseCase
@@ -32,7 +32,7 @@ def follow_endpoint(use_case: UseCase[FollowInput, FollowResult]) -> Endpoint:
         input = FollowInput(token=auth_token, user_id=None, username=username)
         result = await use_case.execute(input)
         if result.user is None:
-            return USER_NOT_FOUND_RESPONSE
+            return user_not_found()
         response_model = ProfileResponseModel.new(result.user, following=True)
         return response_model.response()
 

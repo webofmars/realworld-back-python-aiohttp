@@ -10,7 +10,7 @@ from aiohttp import web
 from aiohttp_apispec import docs, headers_schema, request_schema, response_schema
 from marshmallow import Schema, fields, post_load, validate
 
-from conduit.api.articles.response import ARTICLE_NOT_FOUND_RESPONSE, ArticleResponseModel, ArticleResponseSchema
+from conduit.api.articles.response import ArticleResponseModel, ArticleResponseSchema, article_not_found
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
 from conduit.api.response import ErrorSchema
@@ -62,7 +62,7 @@ def update_article_endpoint(use_case: UseCase[UpdateArticleInput, UpdateArticleR
         input = replace(input, token=auth_token, slug=slug)
         result = await use_case.execute(input)
         if result.article is None:
-            return ARTICLE_NOT_FOUND_RESPONSE
+            return article_not_found()
         response_model = ArticleResponseModel.new(result.article)
         return response_model.response()
 

@@ -10,7 +10,7 @@ from marshmallow import Schema
 
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
-from conduit.api.comments.response import COMMENT_NOT_FOUND_RESPONSE
+from conduit.api.comments.response import comment_not_found
 from conduit.api.response import ErrorSchema
 from conduit.core.entities.article import ArticleSlug
 from conduit.core.entities.comment import CommentId
@@ -36,7 +36,7 @@ def delete_comment_endpoint(use_case: UseCase[DeleteCommentInput, DeleteCommentR
         input = DeleteCommentInput(token=auth_token, user_id=None, article_slug=article_slug, comment_id=comment_id)
         result = await use_case.execute(input)
         if result.comment_id is None:
-            return COMMENT_NOT_FOUND_RESPONSE
+            return comment_not_found()
         return web.json_response({}, status=HTTPStatus.NO_CONTENT)
 
     return handler

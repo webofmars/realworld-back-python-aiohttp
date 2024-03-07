@@ -1,15 +1,14 @@
 __all__ = [
-    "ARTICLE_NOT_FOUND_RESPONSE",
     "ArticleModel",
     "ArticleResponseModel",
     "ArticleResponseSchema",
     "ArticleSchema",
     "MultipleArticlesResponseModel",
     "MultipleArticlesResponseSchema",
+    "article_not_found",
 ]
 
 import datetime as dt
-import typing as t
 from dataclasses import dataclass
 from http import HTTPStatus
 
@@ -19,7 +18,9 @@ from marshmallow import Schema, fields
 from conduit.api.response import ProfileModel, ProfileSchema
 from conduit.core.entities.article import ArticleWithExtra
 
-ARTICLE_NOT_FOUND_RESPONSE: t.Final = web.json_response({"error": "article not found"}, status=HTTPStatus.NOT_FOUND)
+
+def article_not_found() -> web.Response:
+    return web.json_response({"error": "article not found"}, status=HTTPStatus.NOT_FOUND)
 
 
 @dataclass(frozen=True)

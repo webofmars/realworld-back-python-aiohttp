@@ -1,15 +1,14 @@
 __all__ = [
-    "COMMENT_NOT_FOUND_RESPONSE",
     "CommentModel",
     "CommentResponseModel",
     "CommentResponseSchema",
     "CommentSchema",
     "MultipleCommentsResponseModel",
     "MultipleCommentsResponseSchema",
+    "comment_not_found",
 ]
 
 import datetime as dt
-import typing as t
 from dataclasses import dataclass
 from http import HTTPStatus
 
@@ -19,7 +18,9 @@ from marshmallow import Schema, fields
 from conduit.api.response import ProfileModel, ProfileSchema
 from conduit.core.entities.comment import CommentWithExtra
 
-COMMENT_NOT_FOUND_RESPONSE: t.Final = web.json_response({"error": "comment not found"}, status=HTTPStatus.NOT_FOUND)
+
+def comment_not_found() -> web.Response:
+    return web.json_response({"error": "comment not found"}, status=HTTPStatus.NOT_FOUND)
 
 
 @dataclass(frozen=True)

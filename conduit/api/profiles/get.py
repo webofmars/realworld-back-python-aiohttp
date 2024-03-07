@@ -10,7 +10,7 @@ from marshmallow import Schema, fields
 
 from conduit.api.auth import OptionalAuthHeaderSchema
 from conduit.api.base import Endpoint
-from conduit.api.profiles.response import USER_NOT_FOUND_RESPONSE, ProfileResponseModel, ProfileResponseSchema
+from conduit.api.profiles.response import ProfileResponseModel, ProfileResponseSchema, user_not_found
 from conduit.api.response import ErrorSchema, ProfileSchema
 from conduit.core.entities.user import Username
 from conduit.core.use_cases import UseCase
@@ -32,7 +32,7 @@ def get_profile_endpoint(use_case: UseCase[GetProfileInput, GetProfileResult]) -
         input = GetProfileInput(token=auth_token, user_id=None, username=username)
         result = await use_case.execute(input)
         if result.user is None:
-            return USER_NOT_FOUND_RESPONSE
+            return user_not_found()
         response_model = ProfileResponseModel.new(result.user, result.is_followed)
         return response_model.response()
 

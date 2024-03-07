@@ -7,7 +7,7 @@ from http import HTTPStatus
 from aiohttp import web
 from aiohttp_apispec import docs, headers_schema, response_schema
 
-from conduit.api.articles.response import ARTICLE_NOT_FOUND_RESPONSE, ArticleResponseModel, ArticleResponseSchema
+from conduit.api.articles.response import ArticleResponseModel, ArticleResponseSchema, article_not_found
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
 from conduit.api.response import ErrorSchema
@@ -28,7 +28,7 @@ def unfavorite_article_endpoint(use_case: UseCase[UnfavoriteArticleInput, Unfavo
         input = UnfavoriteArticleInput(token=auth_token, user_id=None, slug=slug)
         result = await use_case.execute(input)
         if result.article is None:
-            return ARTICLE_NOT_FOUND_RESPONSE
+            return article_not_found()
         response_model = ArticleResponseModel.new(result.article)
         return response_model.response()
 
