@@ -25,6 +25,7 @@ from conduit.api.errors import error_handling_middleware
 from conduit.api.profiles.follow import follow_endpoint
 from conduit.api.profiles.get import get_profile_endpoint
 from conduit.api.profiles.unfollow import unfollow_endpoint
+from conduit.api.tags.list import list_tags_endpoint
 from conduit.api.users import (
     get_current_user_endpoint,
     sign_in_endpoint,
@@ -60,6 +61,7 @@ from conduit.core.use_cases.comments.get_from_article import (
 from conduit.core.use_cases.profiles.follow import FollowInput, FollowResult, FollowUseCase
 from conduit.core.use_cases.profiles.get import GetProfileInput, GetProfileResult, GetProfileUseCase
 from conduit.core.use_cases.profiles.unfollow import UnfollowInput, UnfollowResult, UnfollowUseCase
+from conduit.core.use_cases.tags.list import ListTagsInput, ListTagsResult, ListTagsUseCase
 from conduit.core.use_cases.users.get_current import GetCurrentUserInput, GetCurrentUserResult, GetCurrentUserUseCase
 from conduit.core.use_cases.users.sign_in import SignInInput, SignInResult, SignInUseCase
 from conduit.core.use_cases.users.sign_up import SignUpInput, SignUpResult, SignUpUseCase
@@ -111,6 +113,8 @@ def create_app() -> web.Application:
                 r"/api/v1/articles/{slug}/comments/{comment_id:\d+}",
                 delete_comment_endpoint(use_cases.delete_comment()),
             ),
+            # Tags
+            web.get("/api/v1/tags", list_tags_endpoint(use_cases.list_tags())),
         ]
     )
     app.middlewares.append(validation_middleware)
@@ -242,4 +246,10 @@ class UseCases(DeclarativeContainer):
         WithAuthentication,
         auth_token_generator=deps.auth_token_generator,
         use_case=Singleton(DeleteCommentUseCase, unit_of_work=deps.unit_of_work),
+    )
+
+    # Tags
+    list_tags: Provider[UseCase[ListTagsInput, ListTagsResult]] = Singleton(
+        ListTagsUseCase,
+        unit_of_work=deps.unit_of_work,
     )
