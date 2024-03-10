@@ -4,14 +4,11 @@ __all__ = [
     "ListTagsUseCase",
 ]
 
-import logging
 from dataclasses import dataclass
 
 from conduit.core.entities.article import Tag
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.use_cases import UseCase
-
-LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

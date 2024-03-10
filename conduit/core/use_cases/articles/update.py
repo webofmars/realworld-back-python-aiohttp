@@ -3,9 +3,11 @@ __all__ = [
     "UpdateArticleResult",
     "UpdateArticleUseCase",
 ]
-import logging
+
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import (
     Article,
@@ -28,7 +30,7 @@ from conduit.core.use_cases.articles.common import (
 from conduit.core.use_cases.auth import WithAuthenticationInput
 from conduit.core.use_cases.common import get_article, is_user_followed
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -63,7 +65,7 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
         if article is None:
             return UpdateArticleResult(None)
         if article.author_id != user_id:
-            LOG.info("user is not allowed to update article", extra={"input": input})
+            LOG.info("user is not allowed to update article", input=input)
             raise PermissionDeniedError()
         author = await get_author(self._unit_of_work, article.author_id)
         tags = await get_tags_for_article(self._unit_of_work, article.id)
@@ -94,5 +96,5 @@ class UpdateArticleUseCase(UseCase[UpdateArticleInput, UpdateArticleResult]):
                     body=input.body,
                 ),
             )
-        LOG.info("article has been updated", extra={"id": updated_article.id if updated_article is not None else None})
+        LOG.info("article has been updated", id=updated_article.id if updated_article is not None else None)
         return updated_article

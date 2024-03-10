@@ -4,8 +4,9 @@ __all__ = [
     "SignInUseCase",
 ]
 
-import logging
 from dataclasses import dataclass
+
+import structlog
 
 from conduit.core.entities.errors import InvalidCredentialsError
 from conduit.core.entities.unit_of_work import UnitOfWork
@@ -19,7 +20,7 @@ from conduit.core.entities.user import (
 )
 from conduit.core.use_cases import UseCase
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -54,11 +55,11 @@ class SignInUseCase(UseCase[SignInInput, SignInResult]):
         async with self._unit_of_work.begin() as uow:
             user = await uow.users.get_by_email(input.email)
         if user is None:
-            LOG.info("user not found", extra={"email": input.email})
+            LOG.info("user not found", email=input.email)
             raise InvalidCredentialsError()
         is_password_valid = await self._password_hasher.verify(input.password, user.password)
         if not is_password_valid:
-            LOG.info("invalid password", extra={"user_id": user.id})
+            LOG.info("invalid password", user_id=user.id)
             raise InvalidCredentialsError()
         auth_token = await self._auth_token_generator.generate_token(user)
         return SignInResult(user, auth_token)

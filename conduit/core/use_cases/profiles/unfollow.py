@@ -4,16 +4,17 @@ __all__ = [
     "UnfollowUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import User, UserId, Username
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -39,13 +40,14 @@ class UnfollowUseCase(UseCase[UnfollowInput, UnfollowResult]):
         Raises:
             UserIsNotAuthenticatedError: If user is not authenticated.
         """
+        log = LOG.bind(input=input)
         user_id = input.ensure_authenticated()
         async with self._unit_of_work.begin() as uow:
             unfollowed_user = await uow.users.get_by_username(input.username)
         if unfollowed_user is None:
-            LOG.info("could not unfollow user, user not found", extra={"input": input})
+            log.info("could not unfollow user, user not found")
             return UnfollowResult(None)
         async with self._unit_of_work.begin() as uow:
             await uow.followers.unfollow(follower_id=user_id, followed_id=unfollowed_user.id)
-        LOG.info("user is unfollowed", extra={"input": input, "unfollowed_user": unfollowed_user})
+        log.info("user is unfollowed", unfollowed_user_id=unfollowed_user.id)
         return UnfollowResult(unfollowed_user)

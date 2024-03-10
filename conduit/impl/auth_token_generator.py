@@ -3,14 +3,14 @@ __all__ = [
 ]
 
 import datetime as dt
-import logging
 import typing as t
 
 import jwt
+import structlog
 
 from conduit.core.entities.user import AuthToken, AuthTokenGenerator, User, UserId
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 class JwtAuthTokenGenerator(AuthTokenGenerator):
@@ -33,9 +33,9 @@ class JwtAuthTokenGenerator(AuthTokenGenerator):
 
     async def get_user_id(self, token: AuthToken) -> UserId | None:
         try:
-            payload = jwt.decode(token, self._secret_key, algorithms=[self.ALGORITHM])
+            payload = jwt.decode(str(token), self._secret_key, algorithms=[self.ALGORITHM])
         except jwt.InvalidTokenError as err:
-            LOG.info("invalid JWT", extra={"token": token, "err": err})
+            LOG.info("invalid JWT", token=str(token), err=err)
             return None
         user_id = payload["user_id"]
         assert isinstance(user_id, int)

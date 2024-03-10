@@ -23,7 +23,7 @@ class UserModel:
     @classmethod
     def new(cls, user: User, token: AuthToken) -> "UserModel":
         return UserModel(
-            token=token,
+            token=str(token),
             email=user.email,
             username=user.username,
             bio=user.bio,

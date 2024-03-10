@@ -4,9 +4,10 @@ __all__ = [
     "DeleteArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import ArticleId, ArticleSlug
 from conduit.core.entities.errors import PermissionDeniedError
@@ -16,7 +17,7 @@ from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 from conduit.core.use_cases.common import get_article
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -48,10 +49,7 @@ class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
         if article is None:
             return DeleteArticleResult(None)
         if article.author_id != user_id:
-            LOG.info(
-                "user is not allowed to delete the article",
-                extra={"user_id": user_id, "author_id": article.author_id},
-            )
+            LOG.info("user is not allowed to delete the article", user_id=user_id, author_id=article.author_id)
             raise PermissionDeniedError()
         deleted_article_id = await self._delete_article(article.id)
         return DeleteArticleResult(deleted_article_id)
@@ -59,5 +57,5 @@ class DeleteArticleUseCase(UseCase[DeleteArticleInput, DeleteArticleResult]):
     async def _delete_article(self, article_id: ArticleId) -> ArticleId | None:
         async with self._unit_of_work.begin() as uow:
             deleted_article_id = await uow.articles.delete(article_id)
-        LOG.info("article has been deleted", extra={"article_id": deleted_article_id})
+        LOG.info("article has been deleted", article_id=deleted_article_id)
         return deleted_article_id

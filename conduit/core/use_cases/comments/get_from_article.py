@@ -4,9 +4,10 @@ __all__ = [
     "GetCommentsFromArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import ArticleSlug
 from conduit.core.entities.comment import Comment, CommentFilter, CommentWithExtra
@@ -17,7 +18,7 @@ from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithOptionalAuthenticationInput
 from conduit.core.use_cases.common import are_users_followed, get_article, get_users
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ class GetCommentsFromArticleUseCase(UseCase[GetCommentsFromArticleInput, GetComm
             raise ArticleDoesNotExistError()
         async with self._unit_of_work.begin() as uow:
             comments = await uow.comments.get_many(CommentFilter(article.id))
-        LOG.info("got comments from the article", extra={"input": input})
+        LOG.info("got comments from the article", input=input)
         author_ids = {comment.author_id for comment in comments}
         authors = await get_users(self._unit_of_work, author_ids)
         followed = await are_users_followed(self._unit_of_work, author_ids, by=user_id)
@@ -65,10 +66,7 @@ class GetCommentsFromArticleUseCase(UseCase[GetCommentsFromArticleInput, GetComm
         for comment in comments:
             author = authors.get(comment.author_id)
             if author is None:
-                LOG.error(
-                    "author of a comment not found",
-                    extra={"comment_id": comment.id, "author_id": comment.author_id},
-                )
+                LOG.error("author of a comment not found", comment_id=comment.id, author_id=comment.author_id)
                 continue
             result.append(
                 CommentWithExtra(

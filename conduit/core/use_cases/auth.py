@@ -4,15 +4,16 @@ __all__ = [
     "WithOptionalAuthenticationInput",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass
+
+import structlog
 
 from conduit.core.entities.errors import UserIsNotAuthenticatedError
 from conduit.core.entities.user import AuthToken, AuthTokenGenerator, UserId
 from conduit.core.use_cases import UseCase
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 T = t.TypeVar("T", bound="Input")
@@ -58,7 +59,7 @@ class WithAuthentication(UseCase[T, R]):
         user_id = await self._auth_token_generator.get_user_id(input.token) if input.token is not None else None
         if user_id is not None:
             input = input.with_user_id(user_id)
-            LOG.info("user authenticated", extra={"user_id": user_id})
+            LOG.info("user authenticated", user_id=user_id)
         else:
             LOG.info("auth token is not provided or invalid")
         return await self._use_case.execute(input)

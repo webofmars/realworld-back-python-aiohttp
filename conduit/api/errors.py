@@ -1,5 +1,5 @@
 __all__ = [
-    "error_handling_middleware",
+    "domain_error_handling_middleware",
 ]
 
 import typing as t
@@ -20,7 +20,7 @@ from conduit.core.entities.errors import (
 
 
 @web.middleware
-async def error_handling_middleware(
+async def domain_error_handling_middleware(
     request: web.Request,
     handler: t.Callable[[web.Request], t.Awaitable[web.StreamResponse]],
 ) -> web.StreamResponse:

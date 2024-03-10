@@ -21,7 +21,8 @@ from conduit.api.articles.update import update_article_endpoint
 from conduit.api.comments.add_to_article import add_comment_to_article_endpoint
 from conduit.api.comments.delete import delete_comment_endpoint
 from conduit.api.comments.get_from_article import get_comments_from_article_endpoint
-from conduit.api.errors import error_handling_middleware
+from conduit.api.errors import domain_error_handling_middleware
+from conduit.api.middlewares import logging_middleware, request_id_middleware
 from conduit.api.profiles.follow import follow_endpoint
 from conduit.api.profiles.get import get_profile_endpoint
 from conduit.api.profiles.unfollow import unfollow_endpoint
@@ -117,8 +118,14 @@ def create_app() -> web.Application:
             web.get("/api/v1/tags", list_tags_endpoint(use_cases.list_tags())),
         ]
     )
-    app.middlewares.append(validation_middleware)
-    app.middlewares.append(error_handling_middleware)
+    app.middlewares.extend(
+        [
+            request_id_middleware,
+            logging_middleware,
+            validation_middleware,
+            domain_error_handling_middleware,
+        ]
+    )
 
     setup_aiohttp_apispec(
         app=app,

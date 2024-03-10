@@ -4,9 +4,10 @@ __all__ = [
     "FeedArticlesUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import Article, ArticleFilter, ArticleId, ArticleWithExtra, Tag
 from conduit.core.entities.unit_of_work import UnitOfWork
@@ -22,7 +23,7 @@ from conduit.core.use_cases.articles.common import (
 from conduit.core.use_cases.auth import WithAuthenticationInput
 from conduit.core.use_cases.common import get_users
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -88,10 +89,7 @@ class FeedArticlesUseCase(UseCase[FeedArticlesInput, FeedArticlesResult]):
         for article in articles:
             author = authors.get(article.author_id)
             if author is None:
-                LOG.error(
-                    "author of an article not found",
-                    extra={"article_id": article.id, "author_id": article.author_id},
-                )
+                LOG.error("author of an article not found", article_id=article.id, author_id=article.author_id)
                 continue
             result.append(
                 ArticleWithExtra(

@@ -4,9 +4,10 @@ __all__ = [
     "FavoriteArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import ArticleId, ArticleSlug, ArticleWithExtra
 from conduit.core.entities.unit_of_work import UnitOfWork
@@ -16,7 +17,7 @@ from conduit.core.use_cases.articles.common import get_author, get_tags_for_arti
 from conduit.core.use_cases.auth import WithAuthenticationInput
 from conduit.core.use_cases.common import get_article, is_user_followed
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,8 @@ class FavoriteArticleUseCase(UseCase[FavoriteArticleInput, FavoriteArticleResult
             favorite_of_user_count = await uow.favorites.add(user_id, article_id)
         LOG.info(
             "article has been added to favorites",
-            extra={"user_id": user_id, "article_id": article_id, "favorite_of_user_count": favorite_of_user_count},
+            user_id=user_id,
+            article_id=article_id,
+            favorite_of_user_count=favorite_of_user_count,
         )
         return favorite_of_user_count

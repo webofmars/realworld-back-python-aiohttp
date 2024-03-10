@@ -4,16 +4,17 @@ __all__ = [
     "GetProfileUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.unit_of_work import UnitOfWork
 from conduit.core.entities.user import User, UserId, Username
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithOptionalAuthenticationInput
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -35,16 +36,17 @@ class GetProfileUseCase(UseCase[GetProfileInput, GetProfileResult]):
         self._unit_of_work = unit_of_work
 
     async def execute(self, input: GetProfileInput, /) -> GetProfileResult:
+        log = LOG.bind(input=input)
         async with self._unit_of_work.begin() as uow:
             user = await uow.users.get_by_username(input.username)
         if user is None:
-            LOG.info("user not found", extra={"input": input})
+            log.info("user not found")
             return GetProfileResult(None, False)
         if input.user_id is not None:
-            LOG.info("user is authenticated, check if profile is followed", extra={"input": input})
+            log.info("user is authenticated, check if profile is followed")
             async with self._unit_of_work.begin() as uow:
                 is_followed = await uow.followers.is_followed(user.id, by=input.user_id)
         else:
-            LOG.info("user is not authenticated, profile is not followed", extra={"input": input})
+            log.info("user is not authenticated, profile is not followed")
             is_followed = False
         return GetProfileResult(user, is_followed)

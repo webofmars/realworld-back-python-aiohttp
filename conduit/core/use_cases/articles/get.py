@@ -4,7 +4,6 @@ __all__ = [
     "GetArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
 
@@ -20,8 +19,6 @@ from conduit.core.use_cases.articles.common import (
 )
 from conduit.core.use_cases.auth import WithOptionalAuthenticationInput
 from conduit.core.use_cases.common import get_article, is_user_followed
-
-LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

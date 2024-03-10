@@ -4,9 +4,10 @@ __all__ = [
     "AddCommentToArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, replace
+
+import structlog
 
 from conduit.core.entities.article import ArticleSlug
 from conduit.core.entities.comment import CommentWithExtra, CreateCommentInput
@@ -17,7 +18,7 @@ from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 from conduit.core.use_cases.common import get_article, is_user_followed
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,9 @@ class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToA
             comment = await uow.comments.create(CreateCommentInput(user_id, article.id, input.body))
         LOG.info(
             "comment has been created",
-            extra={"comment_id": comment.id, "article_id": article.id, "user_id": user_id},
+            comment_id=comment.id,
+            article_id=article.id,
+            user_id=user_id,
         )
         return AddCommentToArticleResult(CommentWithExtra(comment, author, is_author_followed))
 
@@ -63,6 +66,6 @@ class AddCommentToArticleUseCase(UseCase[AddCommentToArticleInput, AddCommentToA
         async with self._unit_of_work.begin() as uow:
             author = await uow.users.get_by_id(user_id)
         if author is None:
-            LOG.info("could not find user by id", extra={"user_id": user_id})
+            LOG.info("could not find user by id", user_id=user_id)
             raise UserIsNotAuthenticatedError()
         return author

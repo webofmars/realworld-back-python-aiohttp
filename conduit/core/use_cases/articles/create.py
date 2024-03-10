@@ -4,9 +4,10 @@ __all__ = [
     "CreateArticleUseCase",
 ]
 
-import logging
 import typing as t
 from dataclasses import dataclass, field, replace
+
+import structlog
 
 from conduit.core.entities.article import (
     Article,
@@ -20,7 +21,7 @@ from conduit.core.entities.user import User, UserId
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -64,7 +65,7 @@ class CreateArticleUseCase(UseCase[CreateArticleInput, CreateArticleResult]):
         async with self._unit_of_work.begin() as uow:
             author = await uow.users.get_by_id(user_id)
         if author is None:
-            LOG.info("could not find user by id", extra={"user_id": user_id})
+            LOG.info("could not find user by id", user_id=user_id)
             raise UserIsNotAuthenticatedError()
         return author
 
@@ -79,5 +80,5 @@ class CreateArticleUseCase(UseCase[CreateArticleInput, CreateArticleResult]):
                 ),
             )
             await uow.tags.create(article.id, input.tags)
-        LOG.info("article has been created", extra={"id": article.id, "slug": article.slug, "tags": input.tags})
+        LOG.info("article has been created", id=article.id, slug=article.slug, tags=input.tags)
         return article

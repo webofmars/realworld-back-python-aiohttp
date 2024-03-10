@@ -3,13 +3,13 @@ __all__ = [
 ]
 
 import asyncio
-import logging
 
 import argon2
+import structlog
 
 from conduit.core.entities.user import PasswordHash, PasswordHasher, RawPassword
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.getLogger(__name__)
 
 
 class Argon2idPasswordHasher(PasswordHasher):
@@ -37,6 +37,6 @@ class Argon2idPasswordHasher(PasswordHasher):
         try:
             await loop.run_in_executor(None, self._hasher.verify, hash, password)
         except argon2.exceptions.VerificationError as err:
-            LOG.info("invalid password", extra={"error": err})
+            LOG.info("invalid password", error=err)
             return False
         return True

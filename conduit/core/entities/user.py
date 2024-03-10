@@ -22,12 +22,22 @@ from yarl import URL
 
 from conduit.core.entities.common import NotSet
 
-AuthToken = t.NewType("AuthToken", str)
 Email = t.NewType("Email", str)
 PasswordHash = t.NewType("PasswordHash", str)
 RawPassword = t.NewType("RawPassword", str)
 UserId = t.NewType("UserId", int)
 Username = t.NewType("Username", str)
+
+
+@dataclass(frozen=True)
+class AuthToken:
+    v: str
+
+    def __repr__(self) -> str:
+        return f"AuthToken('{self.v[:3]}...{self.v[-3:]}')"
+
+    def __str__(self) -> str:
+        return self.v
 
 
 @dataclass(frozen=True)

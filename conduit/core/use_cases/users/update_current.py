@@ -4,9 +4,9 @@ __all__ = [
     "UpdateCurrentUserUseCase",
 ]
 
-import logging
 from dataclasses import dataclass, replace
 
+import structlog
 from yarl import URL
 
 from conduit.core.entities.common import NotSet
@@ -26,7 +26,7 @@ from conduit.core.entities.user import (
 from conduit.core.use_cases import UseCase
 from conduit.core.use_cases.auth import WithAuthenticationInput
 
-LOG = logging.getLogger(__name__)
+LOG = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,6 @@ class UpdateCurrentUserUseCase(UseCase[UpdateCurrentUserInput, UpdateCurrentUser
                 input=input.convert(password_hash),
             )
         if updated_user is None:
-            LOG.warning("authenticated user not found", extra={"user_id": input.user_id})
+            LOG.warning("authenticated user not found", user_id=input.user_id)
             raise UserIsNotAuthenticatedError()
         return UpdateCurrentUserResult(updated_user, input.token)
