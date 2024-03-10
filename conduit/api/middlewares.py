@@ -36,6 +36,8 @@ async def logging_middleware(
     t0 = time.perf_counter()
     try:
         response = await handler(request)
+    except web.HTTPError as error:
+        response = error
     except Exception:
         log.exception("unexpected error")
         response = web.json_response(status=HTTPStatus.INTERNAL_SERVER_ERROR)

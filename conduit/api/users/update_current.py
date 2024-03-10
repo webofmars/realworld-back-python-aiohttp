@@ -9,6 +9,7 @@ from http import HTTPStatus
 from aiohttp import web
 from aiohttp_apispec import docs, headers_schema, json_schema, response_schema
 from marshmallow import Schema, fields, post_load, validate
+from yarl import URL
 
 from conduit.api.auth import RequiredAuthHeaderSchema
 from conduit.api.base import Endpoint
@@ -29,6 +30,11 @@ class UpdateCurrentUserSchema(Schema):
 
     @post_load
     def to_input(self, data: dict[str, t.Any], **_: t.Any) -> UpdateCurrentUserInput:
+        if "image" in data:
+            raw_url = data.get("image")
+            url: URL | None | NotSet = URL(raw_url) if raw_url is not None else None
+        else:
+            url = NotSet.NOT_SET
         return UpdateCurrentUserInput(
             token=AuthToken(""),
             user_id=None,
@@ -36,7 +42,7 @@ class UpdateCurrentUserSchema(Schema):
             email=data.get("email", NotSet.NOT_SET),
             password=data.get("password", NotSet.NOT_SET),
             bio=data.get("bio", NotSet.NOT_SET),
-            image=data.get("image", NotSet.NOT_SET),
+            image=url,
         )
 
 

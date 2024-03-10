@@ -33,6 +33,7 @@ psycopg2-binary = "^2.9.9"
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
 pytest = "^7.4.4"
+pytest-aiohttp = "^1.0.5"
 pytest-asyncio = "^0.23.3"
 pytest-cov = "^4.1.0"
 ruff = "^0.1.13"
@@ -48,7 +49,7 @@ pretty = true
 
 
 [[tool.mypy.overrides]]
-module = ["dynaconf.*", "aiohttp_apispec.*"]
+module = ["dynaconf.*", "aiohttp_apispec.*", "pytest_aiohttp.*"]
 ignore_missing_imports = true
 
 
