@@ -21,8 +21,8 @@ marshmallow = "^3.21.0"
 pyjwt = "^2.8.0"
 python-slugify = "^8.0.4"
 sqlalchemy = "^2.0.25"
-yarl = "^1.9.4"
 structlog = "^24.1.0"
+yarl = "^1.9.4"
 
 
 [tool.poetry.group.migrations.dependencies]
@@ -79,6 +79,7 @@ convention = "google"
 
 [tool.pytest.ini_options]
 addopts = [
+    "--disable-warnings",
     "--cov=conduit",
     "--cov-report=term-missing",
 ]
