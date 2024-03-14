@@ -16,8 +16,8 @@ format:
 fix: format
 	@ruff check --fix
 
-db-up: prerequisites-check
-	@docker compose up -d postgres
+e2e-tests: .env prerequisites-check
+	docker compose run --rm --build e2e-tests
 
-db-down: prerequisites-check
-	@docker compose down
+down: prerequisites-check
+	docker compose down --rmi all

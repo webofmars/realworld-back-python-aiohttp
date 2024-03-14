@@ -5,6 +5,7 @@ from aiohttp import web
 from structlog.typing import EventDict
 
 from conduit.api.middlewares import REQUEST_ID_VAR
+from conduit.config import settings
 from conduit.container import create_app
 
 
@@ -32,4 +33,4 @@ if __name__ == "__main__":
             structlog.processors.JSONRenderer(),
         ]
     )
-    web.run_app(create_app())
+    web.run_app(create_app(), port=settings.LISTEN_PORT)

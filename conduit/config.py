@@ -16,6 +16,7 @@ settings = Dynaconf(
         Validator("POSTGRES_HOST", required=True),
         Validator("POSTGRES_PORT", required=True, cast=int),
         Validator("SECRET_KEY", required=True),
+        Validator("LISTEN_PORT", required=True, cast=int, default="8080"),
     ],
 )
 settings.validators.validate_all()
