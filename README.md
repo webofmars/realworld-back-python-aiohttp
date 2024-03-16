@@ -1,5 +1,7 @@
 # ![RealWorld Example App](logo.png)
 
+![CI pipeline](https://github.com/stkrizh/realworld-aiohttp/actions/workflows/conduit.yml/badge.svg)
+
 > ### Python / AIOHTTP codebase containing real world examples (CRUD, auth, advanced patterns, etc) that adheres to the [RealWorld](https://github.com/gothinkster/realworld) spec and API.
 
 
