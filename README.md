@@ -15,7 +15,7 @@ For more information on how this works with other frontends/backends, head over 
 
 # Getting started
 
-Ensure that you have Docker installed on your system. Clone the repository and switch to the main branch. 
+Ensure that you have Docker installed on your system. Clone the repository and switch to the main branch.
 To run end-to-end tests, use the following command:
 ```bash
 make e2e-tests
