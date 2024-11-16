@@ -1,4 +1,4 @@
-# ![RealWorld Example App](logo.png)
+# RealWorld Example App
 
 ![CI pipeline](https://github.com/stkrizh/realworld-aiohttp/actions/workflows/conduit.yml/badge.svg)
 
