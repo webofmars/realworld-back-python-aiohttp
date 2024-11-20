@@ -61,7 +61,7 @@ releaseTypes:
       publishDraft: true
     branches:
       collapseVersions: true
-      collapsedVersionQualifier: "{{#environmentVariable}}CI_COMMIT_REF_SLUG{{/environmentVariable}}"
+      collapsedVersionQualifier: "{{#environmentVariable}}CI_COMMIT_REF_SLUG{{/environmentVariable}}-{{#environmentVariable}}CI_COMMIT_SHORT_SHA{{/environmentVariable}}"
       description: "{{#fileContent}}CHANGELOG.md{{/fileContent}}"
       gitPush: true
       gitTag: true
