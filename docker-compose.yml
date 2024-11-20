@@ -3,7 +3,7 @@ services:
   migrations:
     build:
       context: .
-      target: migrations
+      target: runtime
     image: realworld/back-migrations
     env_file:
       - .env

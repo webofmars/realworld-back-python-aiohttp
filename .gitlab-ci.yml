@@ -1,8 +1,9 @@
 stages:
   - lint
-  # - test
-  # - build
+  - build
+  - test
   - release
+  - review
   # - deploy
 
 variables:
@@ -16,6 +17,7 @@ variables:
   GIT_DEPTH: 10
   GIT_USER_EMAIL: "gitlab@example.com"
   GIT_USER_NAME: "gitlab-CI"
+  BASE_DOMAIN: wmars.party
 
 image: python:3.13
 

@@ -1,0 +1,11 @@
+ingress:
+  enabled: true
+  hosts:
+    - host: back.example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: back-tls
+      hosts:
+        - back.example.local
