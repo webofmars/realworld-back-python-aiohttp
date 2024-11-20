@@ -6,7 +6,7 @@ infer_version:
 
 docker:
   extends: .docker_build
-  needs: [infer_version]
+  dependencies: [infer_version]
   variables:
     IMAGE_NAME: $CI_REGISTRY_IMAGE
     IMAGE_TAG: ""
@@ -16,3 +16,77 @@ docker:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+helm-lint:
+  extends: .helm_lint
+  variables:
+    HELM_CHART_NAME: "back"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+helm-kubeconform:
+  extends: .helm_kubeconform
+  variables:
+    HELM_CHART_NAME: "back"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+helm-install:
+  extends: .helm_install
+  dependencies: [infer_version]
+  variables:
+    HELM_CHART_NAME: "back"
+    IMAGE_NAME: "${CI_REGISTRY_IMAGE}"
+    IMAGE_TAG: "${VERSION}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+helm-package:
+  extends: .helm_package
+  dependencies: [infer_version]
+  variables:
+    REGISTRY_FQDN: "${CI_REGISTRY}"
+    REGISTRY_USER: "${CI_REGISTRY_USER}"
+    REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+    REGISTRY_PATH: "${CI_PROJECT_PATH}/charts"
+    HELM_CHART_NAME: "back"
+    HELM_CHART_VERSION: "${VERSION}"
+    HELM_APP_VERSION: "${VERSION}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+review_start:
+  extends: .review_start
+  dependencies: [infer_version]
+  variables:
+    REGISTRY_FQDN: ${CI_REGISTRY}
+    REGISTRY_USER: ${CI_REGISTRY_USER}
+    REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
+    REGISTRY_PATH: ${CI_PROJECT_PATH}/charts
+    HELM_CHART_NAME: back
+    HELM_CHART_VERSION: ${VERSION}
+  environment:
+    name: ${REVIEW_APP_SLUG}
+    url: https://${REVIEW_APP_URL}
+    action: start
+    on_stop: review_stop
+    auto_stop_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+review_stop:
+  extends: .review_stop
+  dependencies: [infer_version]
+  variables:
+    HELM_CHART_NAME: back
+    HELM_CHART_VERSION: ${VERSION}
+  environment:
+    name: ${REVIEW_APP_SLUG}
+    url: https://${REVIEW_APP_URL}
+    action: stop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

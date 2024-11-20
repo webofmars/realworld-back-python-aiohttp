@@ -1,0 +1,189 @@
+.helm_lint:
+  stage: lint
+  image: quay.io/helmpack/chart-testing:latest
+  variables:
+    HELM_CHART_NAME: ""
+    GIT_DEPTH: 0
+    GIT_STRATEGY: clone
+    CT_CONFIG_DIR: "${CI_PROJECT_DIR}"
+  script:
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git kubectl
+    - |
+        # make a full clone of git repo
+        echo "+ get all git refs"
+        git fetch --all
+        git checkout "${CI_COMMIT_REF_NAME}"
+        git remote -v
+        git branch -a
+    - |
+        # calculating variables
+        set -x
+        export HELM_CHART_DIR="${CI_PROJECT_DIR}/helm/${HELM_CHART_NAME}"
+        echo "HELM_CHART_DIR=${HELM_CHART_DIR}"
+    - |
+        # build helm dependencies
+        set -x
+        cd "${HELM_CHART_DIR}"
+        ../scripts/dep-build.sh .
+    - |
+        # linting helm chart
+        set -x
+        echo "CT_CONFIG_DIR=${CT_CONFIG_DIR}"
+        cd "${CT_CONFIG_DIR}"
+        ct lint
+
+.helm_install:
+  stage: test
+  image: quay.io/helmpack/chart-testing:latest
+  variables:
+    HELM_CHART_NAME: ""
+    IMAGE_NAME: ""
+    IMAGE_TAG: ""
+    GIT_DEPTH: 0
+    GIT_STRATEGY: clone
+    CT_CONFIG_DIR: "${CI_PROJECT_DIR}"
+    # NOTE: this job depend on a configured kubectl client
+    # so KUBECONFIG must be defined in CI/CD settings as a file variable
+    # KUBECONFIG=""
+  script:
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git
+    - |
+        # make a full clone of git repo
+        echo "+ get all git refs"
+        git fetch --all
+        git checkout "${CI_COMMIT_REF_NAME}"
+    - |
+        # calculating variables
+        set -x
+        export HELM_CHART_DIR="${CI_PROJECT_DIR}/helm/${HELM_CHART_NAME}"
+        echo "HELM_CHART_DIR=${HELM_CHART_DIR}"
+    - |
+        # build helm dependencies
+        set -x
+        cd "${HELM_CHART_DIR}"
+        ../scripts/dep-build.sh .
+    - |
+        # create namespace and image pull secret
+        set -x
+        echo "KUBECONFIG=${KUBECONFIG}"
+        NAMESPACE="tests-${GITLAB_USER_LOGIN}-back"
+        chmod 600 "${KUBECONFIG}"
+        # create namespace
+        kubectl create namespace "${NAMESPACE}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        # create secret
+        kubectl create secret -n ${NAMESPACE} \
+          docker-registry gitlab-registry \
+          --docker-server="${CI_REGISTRY}" \
+          --docker-username="${CI_REGISTRY_USER}" \
+          --docker-password="${CI_REGISTRY_PASSWORD}" \
+          --docker-email="${GITLAB_USER_EMAIL}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+    - |
+        # installing helm chart
+        set -x
+        echo "CT_CONFIG_DIR=${CT_CONFIG_DIR}"
+        cd "${CT_CONFIG_DIR}"
+        IMAGE_TAG="${VERSION}"
+        ct install \
+          --namespace "${NAMESPACE}" \
+          --helm-extra-set-args="--set image.repository=${IMAGE_NAME} --set image.tag=${IMAGE_TAG} --set ingress.hosts[0].host=${REVIEW_APP_URL}"
+    - |
+        # cleanup
+        set -x
+        kubectl delete namespace "${NAMESPACE}" --ignore-not-found
+
+.helm_kubeconform:
+  stage: test
+  image: quay.io/helmpack/chart-testing:latest
+  variables:
+    HELM_CHART_NAME: ""
+    HELM_KUBECONFORM_VERSION: "0.6.7.1"
+    HELM_VERSION: "v3.14.3"
+  script:
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git
+    - |
+        # calculating variables
+        set -x
+        export HELM_CHART_DIR="${CI_PROJECT_DIR}/helm/${HELM_CHART_NAME}"
+        echo "HELM_CHART_DIR=${HELM_CHART_DIR}"
+    - |
+        # install helm
+        curl https://raw.githubusercontent.com/helm/helm/${HELM_VERSION}/scripts/get-helm-3 | sh -s -- -v "${HELM_VERSION}"
+    - |
+        # install helm kubeconform plugin
+        set -x
+        echo "installing helm kubeconform plugin"
+        helm plugin install "https://github.com/melmorabity/helm-kubeconform" --version "${HELM_KUBECONFORM_VERSION}"
+    - |
+        # build helm dependencies
+        set -x
+        cd "${HELM_CHART_DIR}"
+        ../scripts/dep-build.sh .
+    - |
+        # validating helm chart
+        set -x
+        cd "${HELM_CHART_DIR}"
+        helm kubeconform --strict --summary .
+
+.helm_package:
+  stage: release
+  image: docker:27.3
+  services:
+    - name: docker:27.3-dind
+      alias: docker
+  variables:
+    REGISTRY_FQDN: ""
+    REGISTRY_USER: ""
+    REGISTRY_PASSWORD: ""
+    REGISTRY_PATH: "charts"
+    HELM_CHART_NAME: ""
+    HELM_CHART_VERSION: 0.0.0
+    HELM_APP_VERSION: latest
+    HELM_VERSION: "v3.14.3"
+  script:
+    - |
+        # calculating variables
+        set -x
+        export HELM_CHART_DIR="${CI_PROJECT_DIR}/helm/${HELM_CHART_NAME}"
+        echo "HELM_CHART_DIR=${HELM_CHART_DIR}"
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git
+    - |
+        # install helm
+        curl https://raw.githubusercontent.com/helm/helm/${HELM_VERSION}/scripts/get-helm-3 | sh -s -- -v "${HELM_VERSION}"
+    - |
+        # login to the registry
+        set -x
+        echo "Login to the registry"
+        echo "${REGISTRY_PASSWORD}" | docker login --username "${REGISTRY_USER}" --password-stdin "${REGISTRY_FQDN}"
+    - |
+        # building helm dependencies
+        set -x
+        cd "${HELM_CHART_DIR}"
+        ../scripts/dep-build.sh .
+    - |
+        # bump the version of the helm chart
+        set -x
+        echo "Bumping the version of the helm chart"
+        yq eval ".version    = \"${HELM_CHART_VERSION}\"" -i "${HELM_CHART_DIR}/Chart.yaml"
+        yq eval ".appVersion = \"${HELM_CHART_VERSION}\"" -i "${HELM_CHART_DIR}/Chart.yaml"
+    - |
+        # packaging helm chart
+        set -x
+        cd "${HELM_CHART_DIR}"
+        helm package . --version "${HELM_CHART_VERSION}" --app-version "${HELM_APP_VERSION}"
+        OUTFILE="$(basename ${HELM_CHART_DIR})-${HELM_CHART_VERSION}.tgz"
+        echo "packaged helm chart is ${OUTFILE}"
+        helm push ${OUTFILE} oci://${REGISTRY_FQDN}/${REGISTRY_PATH}

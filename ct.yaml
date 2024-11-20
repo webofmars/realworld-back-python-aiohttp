@@ -1,0 +1,9 @@
+chart-dirs:
+  - helm
+charts:
+  - helm/back
+chart-yaml-schema: helm/chart-schema.yaml
+lint-conf: helm/lintconf.yaml
+validate-maintainers: false
+helm-dependency-extra-args:
+  - --skip-refresh

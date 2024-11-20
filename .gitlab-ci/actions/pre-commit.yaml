@@ -12,7 +12,7 @@
         set -x
         echo "+ install pre-commit"
         pip install pre-commit==${VERSION}
-        if [ ! -f "pre-commit-config.yaml" ]; then
+        if [ ! -f ".pre-commit-config.yaml" ]; then
           echo "warning: no config file found"
           echo "using the default configuration"
           pre-commit sample-config > .pre-commit-config.yaml

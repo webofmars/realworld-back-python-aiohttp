@@ -1,5 +1,5 @@
 .docker_build:
-  stage: release
+  stage: build
   image: docker:27.3
   services:
     - name: docker:27.3-dind

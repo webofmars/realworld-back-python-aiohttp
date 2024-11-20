@@ -1,0 +1,108 @@
+.review_start:
+  stage: review
+  image:
+    name: docker:27.3
+  services:
+    - name: docker:27.3-dind
+      alias: docker
+  variables:
+    REGISTRY_FQDN:
+    REGISTRY_USER:
+    REGISTRY_PASSWORD:
+    REGISTRY_PATH: charts
+    HELM_CHART_NAME:
+    HELM_CHART_VERSION: "0.0.0"
+    HELM_VERSION: v3.14.3
+    HELM_EXTRA_ARGS: --wait --timeout 120s --atomic
+    HELM_VALUES_FILENAME: review-values.yaml
+    ENV: "review"
+    REVIEW_APP_SLUG: ${ENV}-${HELM_CHART_NAME}-${GITLAB_USER_LOGIN}-${CI_MERGE_REQUEST_IID}
+    REVIEW_APP_URL: ${REVIEW_APP_SLUG}.${BASE_DOMAIN}
+  script:
+    - |
+        # calculating variables
+        set -x
+        export HELM_CHART_URL="oci://${REGISTRY_FQDN}/${REGISTRY_PATH}/${HELM_CHART_NAME}"
+        echo "HELM_CHART_URL=${HELM_CHART_URL}"
+        export NAMESPACE="${REVIEW_APP_SLUG}"
+        echo "+ NAMESPACE=${NAMESPACE}"
+        export HELM_VALUES="${CI_PROJECT_DIR}/helm/${HELM_CHART_NAME}/${HELM_VALUES_FILENAME}"
+        echo "+ HELM_VALUES=${HELM_VALUES}"
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git kubectl
+    - |
+        # install helm
+        curl https://raw.githubusercontent.com/helm/helm/${HELM_VERSION}/scripts/get-helm-3 | sh -s -- -v "${HELM_VERSION}"
+    - |
+        # login to the registry
+        set -x
+        echo "Login to the registry"
+        echo "${REGISTRY_PASSWORD}" | docker login --username "${REGISTRY_USER}" --password-stdin "${REGISTRY_FQDN}"
+    - |
+        # preparing values-file
+        echo "+ generating values-file"
+        yq -i '.ingress.hosts[0].host   = strenv(REVIEW_APP_URL)' "${HELM_VALUES}"
+        yq -i '.ingress.tls[0].hosts[0] = strenv(REVIEW_APP_URL)' "${HELM_VALUES}"
+        cat "${HELM_VALUES}"
+    - |
+        # create namespace and image pull secret
+        set -x
+        # create namespace
+        kubectl create namespace "${NAMESPACE}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        # create secret
+        kubectl create secret -n ${NAMESPACE} \
+          docker-registry gitlab-registry \
+          --docker-server="${CI_REGISTRY}" \
+          --docker-username="${CI_REGISTRY_USER}" \
+          --docker-password="${CI_REGISTRY_PASSWORD}" \
+          --docker-email="${GITLAB_USER_EMAIL}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+    - |
+        # install helm chart
+        set -x
+        echo "+ installing chart ${HELM_CHART_NAME} version ${HELM_CHART_VERSION}"
+        helm upgrade \
+          ${REVIEW_APP_SLUG} ${HELM_CHART_URL} \
+          --install --namespace ${NAMESPACE} \
+          --version ${HELM_CHART_VERSION} \
+          ${HELM_EXTRA_ARGS} \
+          -f "${HELM_VALUES}"
+
+.review_stop:
+  stage: review
+  when: manual
+  variables:
+    HELM_CHART_NAME:
+    HELM_CHART_VERSION: "0.0.0"
+    HELM_VERSION: v3.14.3
+    HELM_EXTRA_ARGS: --wait --timeout 120s
+    ENV: "review"
+    REVIEW_APP_SLUG: ${ENV}-${HELM_CHART_NAME}-${GITLAB_USER_LOGIN}-${CI_MERGE_REQUEST_IID}
+    REVIEW_APP_URL: ${REVIEW_APP_SLUG}.${BASE_DOMAIN}
+  image:
+    name: docker:27.3
+  script:
+    - |
+        # calculating variables
+        set -x
+        export NAMESPACE="${REVIEW_APP_SLUG}"
+        echo "+ NAMESPACE=${NAMESPACE}"
+    - |
+        # installing needed packages
+        set -x
+        apk add --no-cache jq yq curl openssl git kubectl
+    - |
+        # install helm
+        curl https://raw.githubusercontent.com/helm/helm/${HELM_VERSION}/scripts/get-helm-3 | sh -s -- -v "${HELM_VERSION}"
+    - |
+        # uninstall helm release
+        set -x
+        echo "+ uninstall helm release ${REVIEW_APP_SLUG}"
+        helm uninstall -n ${NAMESPACE} ${REVIEW_APP_SLUG} ${HELM_EXTRA_ARGS} || true
+    - |
+        # remove namespace
+        set -x
+        kubectl delete namespace "${NAMESPACE}" --ignore-not-found || true

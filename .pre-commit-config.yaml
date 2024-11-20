@@ -6,6 +6,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: '^helm/'
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: check-case-conflict
@@ -13,4 +14,5 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-symlinks
       - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
       - id: mixed-line-ending
