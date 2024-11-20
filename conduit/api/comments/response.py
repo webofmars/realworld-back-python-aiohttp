@@ -47,7 +47,7 @@ class CommentModel:
 
 
 class CommentSchema(Schema):
-    id = fields.Integer(required=True)
+    id = fields.String(required=True)
     created_at = fields.DateTime(required=True, data_key="createdAt")
     updated_at = fields.DateTime(required=True, data_key="updatedAt")
     body = fields.String(required=True)
