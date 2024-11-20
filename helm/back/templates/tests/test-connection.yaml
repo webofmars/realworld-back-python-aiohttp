@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "back.fullname" . }}-test-connection"
+  labels:
+    {{- include "back.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  initContainers:
+    - name: wait-for-backend
+      image: flomesh/wait-for-it:1.2.0
+      command:
+        - /bin/bash
+        - -c
+        - |
+            set -eu -o pipefail
+            set -x
+            /wait-for-it.sh \
+              -h {{ include "back.fullname" . }} \
+              -p {{ .Values.service.port }} -t 120 \
+            && echo "backend is ready"
+  containers:
+    - name: test-app
+      image: curlimages/curl
+      command:
+        - ash
+        - -c
+        - |
+          set -eu -o pipefail
+          set -x
+          curl -s -o /dev/null \
+            -w "%{http_code}" \
+            "http://{{ include "back.fullname" . }}:{{ .Values.service.port }}/api/v1/articles"
+  restartPolicy: Never
