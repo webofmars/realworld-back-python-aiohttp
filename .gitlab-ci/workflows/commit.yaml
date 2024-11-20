@@ -3,8 +3,14 @@
 # - when a commit is pushed to a branch
 # ----------------------------------------------------
 # what we want to do:
+# check commit message
 # run linters
 # run tests
+
+conventional_commit:
+  extends: .conventional_commit
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
 
 pre_commit:
   extends: .pre-commit
