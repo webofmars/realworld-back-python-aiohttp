@@ -1,0 +1,17 @@
+# folders
+.gilab-ci
+.git
+.venv
+docs
+
+# files
+.gilab-ci.yml
+.gitignore
+.nyx.yaml
+.pre-commit-config.yaml
+CHANGELOG.md
+clean-architecture.png
+docker-compose.yml
+Dockerfile
+LICENSE
+README.md

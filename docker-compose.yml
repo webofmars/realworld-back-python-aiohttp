@@ -1,0 +1,41 @@
+services:
+
+  migrations:
+    build:
+      context: .
+      target: migrations
+    image: realworld/back-migrations
+    env_file:
+      - .env
+    environment:
+      CONDUIT_POSTGRES_HOST: database
+    networks:
+      - default
+
+  conduit:
+    build:
+      context: .
+      target: runtime
+    image: realworld/back
+    env_file:
+      - .env
+    environment:
+      CONDUIT_POSTGRES_HOST: database
+      CONDUIT_LISTEN_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - default
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.:${CONDUIT_LISTEN_PORT}/api/v1/healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+networks:
+  default:
+    name: realworld
+    external: true
