@@ -4,7 +4,7 @@ stages:
   - test
   - release
   - review
-  # - deploy
+  - deploy
 
 variables:
   DOCKER_BUILDKIT: 1

@@ -3,3 +3,47 @@ release:
   dependencies: [infer_version]
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+deploy_uat:
+  extends: .review_start
+  stage: deploy
+  dependencies: [infer_version]
+  variables:
+    REGISTRY_FQDN: ${CI_REGISTRY}
+    REGISTRY_USER: ${CI_REGISTRY_USER}
+    REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
+    REGISTRY_PATH: ${CI_PROJECT_PATH}/charts
+    HELM_CHART_NAME: back
+    HELM_CHART_VERSION: ${VERSION}
+    ENV: uat
+    REVIEW_APP_SLUG: ${ENV}-${HELM_CHART_NAME}-${GITLAB_USER_LOGIN}
+    REVIEW_APP_URL: ${REVIEW_APP_SLUG}.${BASE_DOMAIN}
+  environment:
+    name: uat
+    url: https://${REVIEW_APP_URL}
+    action: start
+  when: manual
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+
+deploy_prod:
+  extends: .review_start
+  stage: deploy
+  dependencies: [infer_version, deploy_uat]
+  variables:
+    REGISTRY_FQDN: ${CI_REGISTRY}
+    REGISTRY_USER: ${CI_REGISTRY_USER}
+    REGISTRY_PASSWORD: ${CI_REGISTRY_PASSWORD}
+    REGISTRY_PATH: ${CI_PROJECT_PATH}/charts
+    HELM_CHART_NAME: back
+    HELM_CHART_VERSION: ${VERSION}
+    ENV: production
+    REVIEW_APP_SLUG: ${HELM_CHART_NAME}-${GITLAB_USER_LOGIN}
+    REVIEW_APP_URL: ${REVIEW_APP_SLUG}.${BASE_DOMAIN}
+  environment:
+    name: production
+    url: https://${REVIEW_APP_URL}
+    action: start
+  when: manual
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
