@@ -16,4 +16,4 @@ pip install python-dotenv
 3) load env vars : `source .env`
 4) initialize the database structure : `poetry run alembic upgrade head`
 5) start the app : `poetry run  python -m conduit`
-6) validez via `curl http://127.0.0.1:5000/api/v1/articles`
+6) validez via `curl -qSs http://127.0.0.1:5000/api/v1/articles | jq`
