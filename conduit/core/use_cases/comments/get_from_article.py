@@ -4,6 +4,8 @@ __all__ = [
     "GetCommentsFromArticleUseCase",
 ]
 
+import asyncio
+import random
 import typing as t
 from dataclasses import dataclass, replace
 
@@ -44,6 +46,7 @@ class GetCommentsFromArticleUseCase(UseCase[GetCommentsFromArticleInput, GetComm
         Raises:
             ArticleDoesNotExistError: If article does not exist.
         """
+        await asyncio.sleep(random.uniform(0, 3))
         user_id = input.user_id
         article = await get_article(self._unit_of_work, input.article_slug)
         if article is None:
